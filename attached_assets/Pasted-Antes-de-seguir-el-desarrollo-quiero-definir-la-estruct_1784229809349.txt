@@ -1,0 +1,136 @@
+Antes de seguir el desarrollo quiero definir la estructura sobre la cual trabajará toda la aplicación.
+La arquitectura debe ser escalable y estar preparada para soportar múltiples marcas, distintos tipos de negocio y un futuro sistema de permisos.
+La estructura será la siguiente:
+Marca
+    ↓
+Tipo de Negocio
+        ↓
+Carpeta
+            ↓
+Archivo
+________________________________________
+1. Marca
+La Marca será el nivel superior de organización.
+Cada marca será completamente independiente.
+Ejemplos:
+•	Volkswagen
+•	Ford
+•	Chevrolet
+•	Audi
+•	Ducati
+•	Benelli
+•	Suzuki
+•	OMODA
+•	JAECOO
+•	BYD
+El sistema deberá permitir:
+•	Crear marcas
+•	Editar marcas
+•	Eliminar marcas
+•	Activar/Inactivar marcas
+Cada marca podrá tener su propio logo e imagen identificatoria.
+No debe existir un límite de marcas.
+________________________________________
+2. Tipo de Negocio
+Dentro de cada Marca existirán distintos Tipos de Negocio.
+Ejemplos:
+•	Ventas
+•	Postventa
+•	Finanzas
+•	Marketing
+•	RRHH
+•	Administración
+•	Calidad
+•	Plan de Ahorro
+•	Usados
+•	Repuestos
+No quiero que estos valores sean fijos.
+El administrador deberá poder crear, modificar o eliminar Tipos de Negocio según las necesidades de la empresa.
+Cada Marca podrá tener diferentes Tipos de Negocio.
+________________________________________
+3. Carpetas
+Dentro de cada Tipo de Negocio existirán Carpetas.
+Las carpetas servirán para organizar la información.
+Ejemplos para Ventas:
+•	Mercado
+•	Patentamientos
+•	Ventas
+•	Objetivos
+•	KPIs
+•	Leads
+•	CRM
+•	Cotizaciones
+Ejemplos para Postventa:
+•	Taller
+•	Productividad
+•	Facturación
+•	Repuestos
+•	Garantías
+•	Calidad
+•	Satisfacción
+El administrador podrá crear una cantidad ilimitada de carpetas.
+Las carpetas no estarán predefinidas.
+________________________________________
+4. Archivos
+Dentro de cada carpeta podrán cargarse múltiples archivos Excel.
+Cada archivo deberá almacenar la siguiente información:
+Nunca se deberá sobrescribir un archivo existente.
+Cada nueva carga deberá generar una nueva versión y mantener el histórico completo.
+________________________________________
+Navegación
+La navegación deberá ser similar a Google Drive o al Explorador de Windows.
+Ejemplo:
+Volkswagen
+│
+├── Ventas
+│   ├── Mercado
+│   │      Mercado Enero 2026.xlsx
+│   │      Mercado Febrero 2026.xlsx
+│   │      Mercado Marzo 2026.xlsx
+│   │
+│   ├── Patentamientos
+│   │      Patentamientos Enero.xlsx
+│   │      Patentamientos Febrero.xlsx
+│   │
+│   ├── Leads
+│   └── KPIs
+│
+├── Postventa
+│   ├── Taller
+│   ├── Productividad
+│   ├── Facturación
+│   └── Repuestos
+│
+├── Finanzas
+│   ├── Estado de Resultados
+│   ├── Caja
+│   ├── Capital de Trabajo
+│   └── Presupuesto
+│
+└── RRHH
+________________________________________
+Sistema de Permisos
+Toda la arquitectura deberá quedar preparada para un sistema de permisos.
+Cada usuario podrá tener acceso a:
+•	Una o varias Marcas.
+•	Uno o varios Tipos de Negocio.
+•	Una o varias Carpetas.
+Ejemplos:
+Gerente Comercial Volkswagen
+Acceso:
+Volkswagen
+→ Ventas
+________________________________________
+Gerente de Postventa Ford
+Acceso:
+Ford
+→ Postventa
+________________________________________
+Director General
+Acceso:
+Todas las marcas
+Todos los tipos de negocio
+Todas las carpetas
+________________________________________
+Gerente de Control de Gestión
+Acceso total a toda la plataforma.
