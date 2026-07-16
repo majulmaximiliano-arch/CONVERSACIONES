@@ -63,6 +63,14 @@ export interface SessionInput {
   userId: number;
 }
 
+export type FolderScope = typeof FolderScope[keyof typeof FolderScope];
+
+
+export const FolderScope = {
+  market: 'market',
+  brand: 'brand',
+} as const;
+
 export interface Folder {
   id: number;
   name: string;
@@ -72,9 +80,20 @@ export interface Folder {
   color?: string | null;
   /** @nullable */
   icon?: string | null;
+  scope: FolderScope;
+  /** @nullable */
+  brand?: string | null;
   fileCount: number;
   createdAt: string;
 }
+
+export type FolderDetailScope = typeof FolderDetailScope[keyof typeof FolderDetailScope];
+
+
+export const FolderDetailScope = {
+  market: 'market',
+  brand: 'brand',
+} as const;
 
 export type DataFileStatus = typeof DataFileStatus[keyof typeof DataFileStatus];
 
@@ -125,23 +144,46 @@ export interface FolderDetail {
   color?: string | null;
   /** @nullable */
   icon?: string | null;
+  scope: FolderDetailScope;
+  /** @nullable */
+  brand?: string | null;
   files: DataFile[];
   permissions: FolderPermission[];
   createdAt: string;
 }
+
+export type FolderInputScope = typeof FolderInputScope[keyof typeof FolderInputScope];
+
+
+export const FolderInputScope = {
+  market: 'market',
+  brand: 'brand',
+} as const;
 
 export interface FolderInput {
   name: string;
   description?: string;
   color?: string;
   icon?: string;
+  scope?: FolderInputScope;
+  brand?: string;
 }
+
+export type FolderUpdateScope = typeof FolderUpdateScope[keyof typeof FolderUpdateScope];
+
+
+export const FolderUpdateScope = {
+  market: 'market',
+  brand: 'brand',
+} as const;
 
 export interface FolderUpdate {
   name?: string;
   description?: string;
   color?: string;
   icon?: string;
+  scope?: FolderUpdateScope;
+  brand?: string;
 }
 
 export interface FolderPermissionInput {

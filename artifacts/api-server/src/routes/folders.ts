@@ -38,6 +38,8 @@ router.get("/folders", requireSession, async (req, res): Promise<void> => {
         description: foldersTable.description,
         color: foldersTable.color,
         icon: foldersTable.icon,
+        scope: foldersTable.scope,
+        brand: foldersTable.brand,
         createdAt: foldersTable.createdAt,
         fileCount: sql<number>`count(${dataFilesTable.id})::int`,
       })
@@ -65,6 +67,8 @@ router.get("/folders", requireSession, async (req, res): Promise<void> => {
         description: foldersTable.description,
         color: foldersTable.color,
         icon: foldersTable.icon,
+        scope: foldersTable.scope,
+        brand: foldersTable.brand,
         createdAt: foldersTable.createdAt,
         fileCount: sql<number>`count(${dataFilesTable.id})::int`,
       })

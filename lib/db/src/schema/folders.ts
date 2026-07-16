@@ -1,7 +1,9 @@
-import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
+
+export const folderScopeEnum = pgEnum("folder_scope", ["market", "brand"]);
 
 export const foldersTable = pgTable("folders", {
   id: serial("id").primaryKey(),
@@ -9,6 +11,8 @@ export const foldersTable = pgTable("folders", {
   description: text("description"),
   color: text("color"),
   icon: text("icon"),
+  scope: folderScopeEnum("scope").notNull().default("market"),
+  brand: text("brand"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

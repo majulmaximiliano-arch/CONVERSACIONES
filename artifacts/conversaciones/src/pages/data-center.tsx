@@ -1,6 +1,6 @@
 import { useGetSession, useListFolders, useGetMonthlyStatus, getListFoldersQueryKey, getGetMonthlyStatusQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Folder, Database, CheckCircle2, AlertCircle, Calendar } from "lucide-react";
+import { Folder, Database, CheckCircle2, AlertCircle, Calendar, Globe, Car } from "lucide-react";
 import { Link as WouterLink } from "wouter";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -126,10 +126,19 @@ export function DataCenter() {
                           </CardDescription>
                         )}
                       </CardHeader>
-                      <CardContent>
+                      <CardContent className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="text-xs font-medium text-muted-foreground bg-muted inline-flex px-2.5 py-1 rounded-md">
                           {folder.fileCount} archivo{folder.fileCount !== 1 ? 's' : ''}
                         </div>
+                        {folder.scope === 'brand' ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full">
+                            <Car className="h-3 w-3" />{folder.brand ?? 'Marca'}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
+                            <Globe className="h-3 w-3" />Mercado
+                          </span>
+                        )}
                       </CardContent>
                     </Card>
                   </WouterLink>

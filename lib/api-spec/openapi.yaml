@@ -698,6 +698,11 @@ components:
           type: ["string", "null"]
         icon:
           type: ["string", "null"]
+        scope:
+          type: string
+          enum: [market, brand]
+        brand:
+          type: ["string", "null"]
         fileCount:
           type: integer
         createdAt:
@@ -706,6 +711,7 @@ components:
       required:
         - id
         - name
+        - scope
         - fileCount
         - createdAt
 
@@ -722,6 +728,11 @@ components:
           type: ["string", "null"]
         icon:
           type: ["string", "null"]
+        scope:
+          type: string
+          enum: [market, brand]
+        brand:
+          type: ["string", "null"]
         files:
           type: array
           items:
@@ -736,6 +747,7 @@ components:
       required:
         - id
         - name
+        - scope
         - files
         - permissions
         - createdAt
@@ -751,6 +763,11 @@ components:
           type: string
         icon:
           type: string
+        scope:
+          type: string
+          enum: [market, brand]
+        brand:
+          type: string
       required:
         - name
 
@@ -764,6 +781,11 @@ components:
         color:
           type: string
         icon:
+          type: string
+        scope:
+          type: string
+          enum: [market, brand]
+        brand:
           type: string
 
     FolderPermission:

@@ -10,6 +10,7 @@ import { ChatList } from '@/pages/chat';
 import { ChatDetail } from '@/pages/chat-detail';
 import { DataCenter } from '@/pages/data-center';
 import { AdminUsers } from './pages/admin-users';
+import { AdminFolders } from './pages/admin-folders';
 import { FileDetail } from './pages/file-detail';
 import { FolderDetail } from './pages/folder-detail';
 import { SettingsPage } from './pages/settings';
@@ -77,6 +78,12 @@ function Router() {
       <Route path="/history">
         <RequireAuth>
           <History />
+        </RequireAuth>
+      </Route>
+
+      <Route path="/admin/folders">
+        <RequireAuth>
+          <AdminFolders />
         </RequireAuth>
       </Route>
 

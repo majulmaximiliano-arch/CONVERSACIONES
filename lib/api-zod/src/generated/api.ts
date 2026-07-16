@@ -148,6 +148,8 @@ export const ListFoldersResponseItem = zod.object({
   "description": zod.string().nullish(),
   "color": zod.string().nullish(),
   "icon": zod.string().nullish(),
+  "scope": zod.enum(['market', 'brand']),
+  "brand": zod.string().nullish(),
   "fileCount": zod.number(),
   "createdAt": zod.coerce.date()
 })
@@ -161,7 +163,9 @@ export const CreateFolderBody = zod.object({
   "name": zod.string(),
   "description": zod.string().optional(),
   "color": zod.string().optional(),
-  "icon": zod.string().optional()
+  "icon": zod.string().optional(),
+  "scope": zod.enum(['market', 'brand']).optional(),
+  "brand": zod.string().optional()
 })
 
 export const CreateFolderResponse = zod.object({
@@ -170,6 +174,8 @@ export const CreateFolderResponse = zod.object({
   "description": zod.string().nullish(),
   "color": zod.string().nullish(),
   "icon": zod.string().nullish(),
+  "scope": zod.enum(['market', 'brand']),
+  "brand": zod.string().nullish(),
   "fileCount": zod.number(),
   "createdAt": zod.coerce.date()
 })
@@ -188,6 +194,8 @@ export const GetFolderResponse = zod.object({
   "description": zod.string().nullish(),
   "color": zod.string().nullish(),
   "icon": zod.string().nullish(),
+  "scope": zod.enum(['market', 'brand']),
+  "brand": zod.string().nullish(),
   "files": zod.array(zod.object({
   "id": zod.number(),
   "folderId": zod.number(),
@@ -224,7 +232,9 @@ export const UpdateFolderBody = zod.object({
   "name": zod.string().optional(),
   "description": zod.string().optional(),
   "color": zod.string().optional(),
-  "icon": zod.string().optional()
+  "icon": zod.string().optional(),
+  "scope": zod.enum(['market', 'brand']).optional(),
+  "brand": zod.string().optional()
 })
 
 export const UpdateFolderResponse = zod.object({
@@ -233,6 +243,8 @@ export const UpdateFolderResponse = zod.object({
   "description": zod.string().nullish(),
   "color": zod.string().nullish(),
   "icon": zod.string().nullish(),
+  "scope": zod.enum(['market', 'brand']),
+  "brand": zod.string().nullish(),
   "fileCount": zod.number(),
   "createdAt": zod.coerce.date()
 })

@@ -12,7 +12,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { 
   ChevronLeft, FolderOpen, Upload, FileSpreadsheet, 
-  MoreVertical, Trash2, Eye, FileWarning, CheckCircle2, Shield
+  MoreVertical, Trash2, Eye, FileWarning, CheckCircle2, Shield, Globe, Car
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -42,7 +42,8 @@ function FileUploader({ folderId, onSuccess }: { folderId: number, onSuccess: ()
     try {
       const response = await fetch(`/api/folders/${folderId}/upload`, { 
         method: 'POST', 
-        body: formData 
+        body: formData,
+        credentials: 'include',
       });
       
       if (!response.ok) {
@@ -155,7 +156,18 @@ export function FolderDetail() {
               <FolderOpen className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight leading-none">{folder.name}</h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl font-bold tracking-tight leading-none">{folder.name}</h1>
+                {folder.scope === 'brand' ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full">
+                    <Car className="h-3 w-3" />{folder.brand ?? 'Marca'}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
+                    <Globe className="h-3 w-3" />Todo el mercado
+                  </span>
+                )}
+              </div>
               {folder.description && (
                 <p className="text-sm text-muted-foreground mt-1">{folder.description}</p>
               )}

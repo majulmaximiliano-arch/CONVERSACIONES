@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { DataFile } from './dataFile';
+import type { FolderDetailScope } from './folderDetailScope';
 import type { FolderPermission } from './folderPermission';
 
 export interface FolderDetail {
@@ -17,6 +18,9 @@ export interface FolderDetail {
   color?: string | null;
   /** @nullable */
   icon?: string | null;
+  scope: FolderDetailScope;
+  /** @nullable */
+  brand?: string | null;
   files: DataFile[];
   permissions: FolderPermission[];
   createdAt: Date;

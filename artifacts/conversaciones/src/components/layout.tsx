@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useGetSession, useClearSession } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetSessionQueryKey } from "@workspace/api-client-react";
-import { Database, LayoutDashboard, Settings, LogOut, MessageSquare, History, Users } from "lucide-react";
+import { Database, Settings, LogOut, MessageSquare, History, Users, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Sidebar() {
@@ -33,6 +33,7 @@ export function Sidebar() {
   ];
 
   if (isAdmin) {
+    navItems.push({ icon: FolderOpen, label: "Carpetas", href: "/admin/folders", match: "/admin/folders" });
     navItems.push({ icon: Users, label: "Usuarios", href: "/admin/users", match: "/admin/users" });
   }
 
