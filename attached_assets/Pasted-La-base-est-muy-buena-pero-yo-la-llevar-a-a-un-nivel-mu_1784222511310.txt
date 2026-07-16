@@ -1,0 +1,214 @@
+La base está muy buena, pero yo la llevaría a un nivel mucho más profesional. Hay varias cosas que hoy no le estás diciendo a Replit y que son fundamentales: cómo debe "pensar" el sistema, cómo manejar múltiples archivos, cómo relacionar la información, cómo construir la experiencia conversacional y cómo crecer en el futuro.
+Este es el prompt que yo le daría a Claude/Replit:
+________________________________________
+PROYECTO: COPILOT BI – Inteligencia de Negocio Conversacional
+Objetivo
+Quiero desarrollar una aplicación web SaaS de Inteligencia de Negocio Conversacional especializada inicialmente en concesionarios automotrices.
+La aplicación NO debe ser un dashboard tradicional ni un sistema BI clásico.
+El objetivo es reemplazar reportes y dashboards por una experiencia completamente conversacional, donde el usuario pueda interactuar con la información como si estuviera hablando con un analista de Control de Gestión.
+La plataforma debe ayudar a entender el negocio, detectar problemas, encontrar oportunidades y facilitar la toma de decisiones.
+Debe ser una combinación entre:
+•	ChatGPT
+•	Power BI
+•	Perplexity
+•	Tableau
+pero especializada en gestión empresarial.
+________________________________________
+Primera versión (MVP)
+La aplicación NO debe conectarse inicialmente a:
+•	ERP
+•	DMS
+•	CRM
+•	SQL
+•	APIs
+Toda la información ingresará mediante archivos Excel cargados manualmente por el usuario.
+Cada mes el usuario incorporará nuevos archivos.
+El sistema deberá conservar el histórico de todas las cargas.
+________________________________________
+Carga de información
+Crear un módulo denominado Centro de Datos.
+Cada archivo deberá registrarse con:
+•	Nombre del archivo
+•	Descripción
+•	Marca
+•	Usuario al que se le permite acceder
+El usuario carga cada mes archivos como:
+•	Patentamientos del mercado
+•	Patentamientos propios
+•	Operaciones
+•	Facturación
+•	Taller
+•	Finanzas
+•	Stock
+•	Posventa
+•	Clientes
+•	Leads
+•	Cualquier otro Excel
+No quiero limitar los tipos de archivos. Debería poder identificar si el archivo de ese mes se cargó.
+________________________________________
+Lectura inteligente del Excel
+Al cargar un Excel el sistema debe:
+Detectar automáticamente:
+•	hojas
+•	encabezados
+•	columnas
+•	tipos de datos
+•	fechas
+•	números
+•	porcentajes
+•	categorías
+•	dimensiones
+•	métricas
+Luego debe mostrar un resumen indicando por ejemplo:
+"Se detectaron:
+•	15 columnas
+•	2 métricas
+•	3 dimensiones
+•	Período Mayo 2026
+•	Marca Volkswagen"
+El usuario puede confirmar o corregir.
+________________________________________
+Modelo de datos
+No quiero simplemente guardar archivos.
+Quiero construir una capa semántica.
+El sistema debe comprender conceptos de negocio.
+Ejemplos:
+Patentamientos
+Share
+Rentabilidad
+Productividad
+Absorción
+Margen
+Ticket Promedio
+Capital de Trabajo
+Rotación
+Stock
+Horas Vendidas
+Horas Disponibles
+Etc.
+El sistema debe poder relacionar datos provenientes de distintos archivos.
+Ejemplo:
+Archivo A
+Mercado
+Archivo B
+Ventas Maipú
+El sistema debe comprender automáticamente que ambos permiten calcular Share.
+________________________________________
+Experiencia Conversacional
+La pantalla principal será un chat.
+El usuario podrá escribir preguntas como:
+¿Qué marca vendió más?
+Comparame abril contra mayo.
+¿Por qué cayó Chevrolet?
+¿Qué sucursal tiene mayor productividad?
+¿Cómo evolucionó el share?
+¿Qué tendencias observás?
+¿Qué indicadores empeoraron?
+El sistema deberá:
+Interpretar la pregunta.
+Buscar la información relevante.
+Cruzar distintos archivos.
+Calcular indicadores.
+Generar tablas.
+Generar gráficos.
+Explicar resultados.
+Proponer insights.
+Responder como un Gerente de Control de Gestión experto.
+Nunca limitarse a mostrar datos.
+Siempre explicar.
+________________________________________
+Visualizaciones
+Cuando la respuesta lo requiera el sistema generará automáticamente:
+•	gráficos de líneas
+•	barras
+•	áreas
+•	tortas
+•	tablas
+•	rankings
+•	comparativos
+•	tendencias
+El usuario nunca deberá construir un gráfico manualmente.
+________________________________________
+Inteligencia
+Además de responder preguntas, el sistema deberá detectar automáticamente:
+•	anomalías
+•	tendencias
+•	variaciones
+•	oportunidades
+•	riesgos
+•	cambios importantes
+Ejemplo:
+"La productividad cayó un 8% respecto al promedio de los últimos seis meses."
+________________________________________
+________________________________________
+Diseño
+El diseño debe transmitir:
+simplicidad
+velocidad
+elegancia
+inteligencia
+Nada parecido a un ERP.
+Inspirarse en:
+ChatGPT
+Perplexity
+Notion
+Linear
+Stripe Dashboard
+________________________________________
+Navegación
+Sidebar izquierda
+•	Centro de Datos
+•	Chat
+•	Historial
+•	Configuración
+Pantalla principal
+Chat
+Panel derecho
+•	KPIs
+•	gráficos
+•	insights
+•	archivos relacionados
+________________________________________
+Escalabilidad
+Aunque el MVP utilice únicamente Excel, toda la arquitectura debe quedar preparada para incorporar posteriormente:
+•	SQL
+•	APIs
+•	ERP
+•	CRM
+•	DMS
+•	Power BI
+•	Data Warehouse
+No quiero reescribir el sistema cuando llegue ese momento.
+________________________________________
+Forma de trabajo
+No desarrolles todo junto.
+Trabajemos por iteraciones.
+Al finalizar cada etapa quiero que:
+1.	expliques la arquitectura creada.
+2.	expliques el código.
+3.	indiques cómo probarlo.
+4.	propongas mejoras.
+5.	esperes mi aprobación antes de continuar.
+Priorizar siempre calidad de arquitectura sobre velocidad de desarrollo.
+________________________________________
+Una idea que creo que puede transformar este proyecto
+Hay una funcionalidad que no existe en la mayoría de las herramientas BI y que puede ser el mayor diferencial.
+En lugar de que el usuario tenga que elegir qué archivo consultar, el sistema debería construir un Catálogo de Conocimiento.
+Cada Excel que subas pasa a formar parte de la "memoria" del sistema.
+Por ejemplo:
+•	Patentamientos Mercado → histórico 2024-2026.
+•	Operaciones Facturadas → histórico mensual.
+•	Productividad Taller → histórico diario.
+•	Estado de Resultados → histórico financiero.
+Entonces el usuario simplemente pregunta:
+"¿Qué pasó con Volkswagen en mayo?"
+Y el sistema sabe que debe consultar:
+•	patentamientos,
+•	operaciones,
+•	rentabilidad,
+•	share,
+•	productividad,
+•	y cualquier otro archivo relacionado.
+Es decir, no conversa con un Excel. Conversa con el conocimiento acumulado de la empresa.
+En mi opinión, ese concepto es el que puede convertir este proyecto de una herramienta interesante en un producto realmente diferencial.
+
