@@ -5,10 +5,13 @@
  * CONVERSACIONES – Conversational Business Intelligence API
  * OpenAPI spec version: 0.1.0
  */
-import type { FolderScope } from './folderScope';
 
 export interface Folder {
   id: number;
+  tipoNegocioId: number;
+  tipoNegocioName: string;
+  marcaId: number;
+  marcaName: string;
   name: string;
   /** @nullable */
   description?: string | null;
@@ -16,9 +19,6 @@ export interface Folder {
   color?: string | null;
   /** @nullable */
   icon?: string | null;
-  scope: FolderScope;
-  /** @nullable */
-  brand?: string | null;
   fileCount: number;
   createdAt: Date;
 }

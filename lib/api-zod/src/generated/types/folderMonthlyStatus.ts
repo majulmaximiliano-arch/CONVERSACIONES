@@ -9,6 +9,10 @@
 export interface FolderMonthlyStatus {
   folderId: number;
   folderName: string;
+  /** @nullable */
+  tipoNegocioName?: string | null;
+  /** @nullable */
+  marcaName?: string | null;
   hasFileForMonth: boolean;
   /** @nullable */
   latestFileDate?: string | null;

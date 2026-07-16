@@ -9,7 +9,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!isLoading && !session?.userId && location !== "/") {
+    if (!isLoading && !session?.user?.id && location !== "/") {
       setLocation("/");
     }
   }, [session, isLoading, location, setLocation]);
@@ -23,7 +23,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
     </div>;
   }
 
-  if (!session?.userId) {
+  if (!session?.user?.id) {
     return <UserSelection />;
   }
 

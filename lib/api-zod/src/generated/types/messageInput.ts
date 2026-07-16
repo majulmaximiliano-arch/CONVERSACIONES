@@ -8,5 +8,4 @@
 
 export interface MessageInput {
   content: string;
-  userId: number;
 }

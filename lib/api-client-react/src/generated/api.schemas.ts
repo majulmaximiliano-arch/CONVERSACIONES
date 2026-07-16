@@ -36,7 +36,7 @@ export const UserInputRole = {
 export interface UserInput {
   name: string;
   email: string;
-  role: UserInputRole;
+  role?: UserInputRole;
 }
 
 export type UserUpdateRole = typeof UserUpdateRole[keyof typeof UserUpdateRole];
@@ -54,25 +54,61 @@ export interface UserUpdate {
 }
 
 export interface SessionInfo {
-  /** @nullable */
-  userId: number | null;
-  user?: User | null;
+  user: User;
 }
 
 export interface SessionInput {
   userId: number;
 }
 
-export type FolderScope = typeof FolderScope[keyof typeof FolderScope];
+export interface Marca {
+  id: number;
+  name: string;
+  slug: string;
+  /** @nullable */
+  logoUrl?: string | null;
+  isActive: boolean;
+  tipoNegocioCount: number;
+  createdAt: string;
+}
 
+export interface MarcaInput {
+  name: string;
+  slug: string;
+  logoUrl?: string;
+  isActive?: boolean;
+}
 
-export const FolderScope = {
-  market: 'market',
-  brand: 'brand',
-} as const;
+export interface MarcaUpdate {
+  name?: string;
+  slug?: string;
+  logoUrl?: string;
+  isActive?: boolean;
+}
+
+export interface TipoNegocio {
+  id: number;
+  marcaId: number;
+  marcaName: string;
+  name: string;
+  folderCount: number;
+  createdAt: string;
+}
+
+export interface TipoNegocioInput {
+  name: string;
+}
+
+export interface TipoNegocioUpdate {
+  name?: string;
+}
 
 export interface Folder {
   id: number;
+  tipoNegocioId: number;
+  tipoNegocioName: string;
+  marcaId: number;
+  marcaName: string;
   name: string;
   /** @nullable */
   description?: string | null;
@@ -80,20 +116,9 @@ export interface Folder {
   color?: string | null;
   /** @nullable */
   icon?: string | null;
-  scope: FolderScope;
-  /** @nullable */
-  brand?: string | null;
   fileCount: number;
   createdAt: string;
 }
-
-export type FolderDetailScope = typeof FolderDetailScope[keyof typeof FolderDetailScope];
-
-
-export const FolderDetailScope = {
-  market: 'market',
-  brand: 'brand',
-} as const;
 
 export type DataFileStatus = typeof DataFileStatus[keyof typeof DataFileStatus];
 
@@ -137,6 +162,10 @@ export interface FolderPermission {
 
 export interface FolderDetail {
   id: number;
+  tipoNegocioId: number;
+  tipoNegocioName: string;
+  marcaId: number;
+  marcaName: string;
   name: string;
   /** @nullable */
   description?: string | null;
@@ -144,46 +173,24 @@ export interface FolderDetail {
   color?: string | null;
   /** @nullable */
   icon?: string | null;
-  scope: FolderDetailScope;
-  /** @nullable */
-  brand?: string | null;
   files: DataFile[];
   permissions: FolderPermission[];
   createdAt: string;
 }
 
-export type FolderInputScope = typeof FolderInputScope[keyof typeof FolderInputScope];
-
-
-export const FolderInputScope = {
-  market: 'market',
-  brand: 'brand',
-} as const;
-
 export interface FolderInput {
+  tipoNegocioId: number;
   name: string;
   description?: string;
   color?: string;
   icon?: string;
-  scope?: FolderInputScope;
-  brand?: string;
 }
-
-export type FolderUpdateScope = typeof FolderUpdateScope[keyof typeof FolderUpdateScope];
-
-
-export const FolderUpdateScope = {
-  market: 'market',
-  brand: 'brand',
-} as const;
 
 export interface FolderUpdate {
   name?: string;
   description?: string;
   color?: string;
   icon?: string;
-  scope?: FolderUpdateScope;
-  brand?: string;
 }
 
 export interface FolderPermissionInput {
@@ -193,6 +200,10 @@ export interface FolderPermissionInput {
 export interface FolderMonthlyStatus {
   folderId: number;
   folderName: string;
+  /** @nullable */
+  tipoNegocioName?: string | null;
+  /** @nullable */
+  marcaName?: string | null;
   hasFileForMonth: boolean;
   /** @nullable */
   latestFileDate?: string | null;
@@ -304,11 +315,13 @@ export interface KnowledgeConcept {
   formula?: string | null;
 }
 
-export interface ConceptMapping {
-  folderName: string;
-  columnName: string;
-  role: string;
-}
+export type KnowledgeConceptDetailColumnMappingsItem = {
+  /** @nullable */
+  folderId?: number | null;
+  folderName?: string;
+  columnName?: string;
+  role?: string;
+};
 
 export interface KnowledgeConceptDetail {
   id: number;
@@ -317,16 +330,16 @@ export interface KnowledgeConceptDetail {
   category: string;
   /** @nullable */
   formula?: string | null;
-  columnMappings: ConceptMapping[];
+  columnMappings: KnowledgeConceptDetailColumnMappingsItem[];
 }
 
 export interface Conversation {
   id: number;
   userId: number;
   title: string;
-  messageCount: number;
   createdAt: string;
   updatedAt: string;
+  messageCount?: number;
 }
 
 export interface ConversationInput {
@@ -385,14 +398,13 @@ export interface ConversationDetail {
   id: number;
   userId: number;
   title: string;
-  messages: Message[];
   createdAt: string;
   updatedAt: string;
+  messages: Message[];
 }
 
 export interface MessageInput {
   content: string;
-  userId: number;
 }
 
 export interface MessageResponse {
@@ -408,7 +420,12 @@ export interface DashboardOverview {
   monthlyStatus: FolderMonthlyStatus[];
 }
 
+export type ListMarcasParams = {
+activeOnly?: boolean;
+};
+
 export type ListFoldersParams = {
+tipoNegocioId?: number;
 userId?: number;
 };
 

@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type FolderScope = typeof FolderScope[keyof typeof FolderScope];
-
-
-export const FolderScope = {
-  market: 'market',
-  brand: 'brand',
-} as const;
+export type KnowledgeConceptDetailColumnMappingsItem = {
+  /** @nullable */
+  folderId?: number | null;
+  folderName?: string;
+  columnName?: string;
+  role?: string;
+};

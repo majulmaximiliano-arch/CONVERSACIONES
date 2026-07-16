@@ -11,7 +11,7 @@ export interface ConversationDetail {
   id: number;
   userId: number;
   title: string;
-  messages: Message[];
   createdAt: Date;
   updatedAt: Date;
+  messages: Message[];
 }

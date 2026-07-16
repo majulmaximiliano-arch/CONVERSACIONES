@@ -35,7 +35,7 @@ export const ListUsersResponse = zod.array(ListUsersResponseItem)
 export const CreateUserBody = zod.object({
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['admin', 'analyst'])
+  "role": zod.enum(['admin', 'analyst']).optional()
 })
 
 export const CreateUserResponse = zod.object({
@@ -99,14 +99,13 @@ export const DeleteUserResponse = zod.void()
  * @summary Get current session user
  */
 export const GetSessionResponse = zod.object({
-  "userId": zod.number().nullable(),
-  "user": zod.union([zod.object({
+  "user": zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "email": zod.string(),
   "role": zod.enum(['admin', 'analyst']),
   "createdAt": zod.coerce.date()
-}),zod.null()]).optional()
+})
 })
 
 
@@ -118,14 +117,13 @@ export const SetSessionBody = zod.object({
 })
 
 export const SetSessionResponse = zod.object({
-  "userId": zod.number().nullable(),
-  "user": zod.union([zod.object({
+  "user": zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "email": zod.string(),
   "role": zod.enum(['admin', 'analyst']),
   "createdAt": zod.coerce.date()
-}),zod.null()]).optional()
+})
 })
 
 
@@ -136,20 +134,188 @@ export const ClearSessionResponse = zod.void()
 
 
 /**
+ * @summary List all brands
+ */
+export const ListMarcasQueryParams = zod.object({
+  "activeOnly": zod.coerce.boolean().optional()
+})
+
+export const ListMarcasResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "logoUrl": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "tipoNegocioCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+export const ListMarcasResponse = zod.array(ListMarcasResponseItem)
+
+
+/**
+ * @summary Create a brand (admin only)
+ */
+export const CreateMarcaBody = zod.object({
+  "name": zod.string(),
+  "slug": zod.string(),
+  "logoUrl": zod.string().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const CreateMarcaResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "logoUrl": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "tipoNegocioCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get a brand by ID
+ */
+export const GetMarcaParams = zod.object({
+  "marcaId": zod.coerce.number()
+})
+
+export const GetMarcaResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "logoUrl": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "tipoNegocioCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a brand (admin only)
+ */
+export const UpdateMarcaParams = zod.object({
+  "marcaId": zod.coerce.number()
+})
+
+export const UpdateMarcaBody = zod.object({
+  "name": zod.string().optional(),
+  "slug": zod.string().optional(),
+  "logoUrl": zod.string().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateMarcaResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "logoUrl": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "tipoNegocioCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a brand (admin only)
+ */
+export const DeleteMarcaParams = zod.object({
+  "marcaId": zod.coerce.number()
+})
+
+export const DeleteMarcaResponse = zod.void()
+
+
+/**
+ * @summary List business types for a brand
+ */
+export const ListTiposNegocioParams = zod.object({
+  "marcaId": zod.coerce.number()
+})
+
+export const ListTiposNegocioResponseItem = zod.object({
+  "id": zod.number(),
+  "marcaId": zod.number(),
+  "marcaName": zod.string(),
+  "name": zod.string(),
+  "folderCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+export const ListTiposNegocioResponse = zod.array(ListTiposNegocioResponseItem)
+
+
+/**
+ * @summary Create a business type (admin only)
+ */
+export const CreateTipoNegocioParams = zod.object({
+  "marcaId": zod.coerce.number()
+})
+
+export const CreateTipoNegocioBody = zod.object({
+  "name": zod.string()
+})
+
+export const CreateTipoNegocioResponse = zod.object({
+  "id": zod.number(),
+  "marcaId": zod.number(),
+  "marcaName": zod.string(),
+  "name": zod.string(),
+  "folderCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a business type (admin only)
+ */
+export const UpdateTipoNegocioParams = zod.object({
+  "marcaId": zod.coerce.number(),
+  "tipoNegocioId": zod.coerce.number()
+})
+
+export const UpdateTipoNegocioBody = zod.object({
+  "name": zod.string().optional()
+})
+
+export const UpdateTipoNegocioResponse = zod.object({
+  "id": zod.number(),
+  "marcaId": zod.number(),
+  "marcaName": zod.string(),
+  "name": zod.string(),
+  "folderCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a business type (admin only)
+ */
+export const DeleteTipoNegocioParams = zod.object({
+  "marcaId": zod.coerce.number(),
+  "tipoNegocioId": zod.coerce.number()
+})
+
+export const DeleteTipoNegocioResponse = zod.void()
+
+
+/**
  * @summary List folders accessible to current user
  */
 export const ListFoldersQueryParams = zod.object({
+  "tipoNegocioId": zod.coerce.number().optional(),
   "userId": zod.coerce.number().optional()
 })
 
 export const ListFoldersResponseItem = zod.object({
   "id": zod.number(),
+  "tipoNegocioId": zod.number(),
+  "tipoNegocioName": zod.string(),
+  "marcaId": zod.number(),
+  "marcaName": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "color": zod.string().nullish(),
   "icon": zod.string().nullish(),
-  "scope": zod.enum(['market', 'brand']),
-  "brand": zod.string().nullish(),
   "fileCount": zod.number(),
   "createdAt": zod.coerce.date()
 })
@@ -160,22 +326,23 @@ export const ListFoldersResponse = zod.array(ListFoldersResponseItem)
  * @summary Create a new folder (admin only)
  */
 export const CreateFolderBody = zod.object({
+  "tipoNegocioId": zod.number(),
   "name": zod.string(),
   "description": zod.string().optional(),
   "color": zod.string().optional(),
-  "icon": zod.string().optional(),
-  "scope": zod.enum(['market', 'brand']).optional(),
-  "brand": zod.string().optional()
+  "icon": zod.string().optional()
 })
 
 export const CreateFolderResponse = zod.object({
   "id": zod.number(),
+  "tipoNegocioId": zod.number(),
+  "tipoNegocioName": zod.string(),
+  "marcaId": zod.number(),
+  "marcaName": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "color": zod.string().nullish(),
   "icon": zod.string().nullish(),
-  "scope": zod.enum(['market', 'brand']),
-  "brand": zod.string().nullish(),
   "fileCount": zod.number(),
   "createdAt": zod.coerce.date()
 })
@@ -190,12 +357,14 @@ export const GetFolderParams = zod.object({
 
 export const GetFolderResponse = zod.object({
   "id": zod.number(),
+  "tipoNegocioId": zod.number(),
+  "tipoNegocioName": zod.string(),
+  "marcaId": zod.number(),
+  "marcaName": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "color": zod.string().nullish(),
   "icon": zod.string().nullish(),
-  "scope": zod.enum(['market', 'brand']),
-  "brand": zod.string().nullish(),
   "files": zod.array(zod.object({
   "id": zod.number(),
   "folderId": zod.number(),
@@ -232,19 +401,19 @@ export const UpdateFolderBody = zod.object({
   "name": zod.string().optional(),
   "description": zod.string().optional(),
   "color": zod.string().optional(),
-  "icon": zod.string().optional(),
-  "scope": zod.enum(['market', 'brand']).optional(),
-  "brand": zod.string().optional()
+  "icon": zod.string().optional()
 })
 
 export const UpdateFolderResponse = zod.object({
   "id": zod.number(),
+  "tipoNegocioId": zod.number(),
+  "tipoNegocioName": zod.string(),
+  "marcaId": zod.number(),
+  "marcaName": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "color": zod.string().nullish(),
   "icon": zod.string().nullish(),
-  "scope": zod.enum(['market', 'brand']),
-  "brand": zod.string().nullish(),
   "fileCount": zod.number(),
   "createdAt": zod.coerce.date()
 })
@@ -434,6 +603,8 @@ export const GetMonthlyStatusQueryParams = zod.object({
 export const GetMonthlyStatusResponseItem = zod.object({
   "folderId": zod.number(),
   "folderName": zod.string(),
+  "tipoNegocioName": zod.string().nullish(),
+  "marcaName": zod.string().nullish(),
   "hasFileForMonth": zod.boolean(),
   "latestFileDate": zod.string().nullish(),
   "fileCount": zod.number()
@@ -468,9 +639,10 @@ export const GetKnowledgeConceptResponse = zod.object({
   "category": zod.string(),
   "formula": zod.string().nullish(),
   "columnMappings": zod.array(zod.object({
-  "folderName": zod.string(),
-  "columnName": zod.string(),
-  "role": zod.string()
+  "folderId": zod.number().nullish(),
+  "folderName": zod.string().optional(),
+  "columnName": zod.string().optional(),
+  "role": zod.string().optional()
 }))
 })
 
@@ -486,9 +658,9 @@ export const ListConversationsResponseItem = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
   "title": zod.string(),
-  "messageCount": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "messageCount": zod.number().optional()
 })
 export const ListConversationsResponse = zod.array(ListConversationsResponseItem)
 
@@ -505,9 +677,9 @@ export const CreateConversationResponse = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
   "title": zod.string(),
-  "messageCount": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "messageCount": zod.number().optional()
 })
 
 
@@ -522,6 +694,8 @@ export const GetConversationResponse = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
   "title": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
   "messages": zod.array(zod.object({
   "id": zod.number(),
   "conversationId": zod.number(),
@@ -537,9 +711,7 @@ export const GetConversationResponse = zod.object({
   "insights": zod.array(zod.string()).optional(),
   "filesConsulted": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date()
-})),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+}))
 })
 
 
@@ -561,8 +733,7 @@ export const SendMessageParams = zod.object({
 })
 
 export const SendMessageBody = zod.object({
-  "content": zod.string(),
-  "userId": zod.number()
+  "content": zod.string()
 })
 
 export const SendMessageResponse = zod.object({
@@ -616,13 +787,15 @@ export const GetDashboardOverviewResponse = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
   "title": zod.string(),
-  "messageCount": zod.number(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "messageCount": zod.number().optional()
 })),
   "monthlyStatus": zod.array(zod.object({
   "folderId": zod.number(),
   "folderName": zod.string(),
+  "tipoNegocioName": zod.string().nullish(),
+  "marcaName": zod.string().nullish(),
   "hasFileForMonth": zod.boolean(),
   "latestFileDate": zod.string().nullish(),
   "fileCount": zod.number()

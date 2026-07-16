@@ -15,11 +15,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, FileSpreadsheet, Save, CheckCircle2, FileWarning } from "lucide-react";
+import { ChevronRight, FileSpreadsheet, Save, CheckCircle2, FileWarning } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { es } from "date-fns/locale";
 import { format } from "date-fns";
+import { Link as WouterLink } from "wouter";
 
 const TYPE_LABELS: Record<FileColumnDetectedType, string> = {
   number: 'Número',
@@ -30,7 +31,12 @@ const TYPE_LABELS: Record<FileColumnDetectedType, string> = {
 };
 
 export function FileDetail() {
-  const { folderId, fileId } = useParams();
+  const { marcaId, tipoNegocioId, folderId, fileId } = useParams<{
+    marcaId: string;
+    tipoNegocioId: string;
+    folderId: string;
+    fileId: string;
+  }>();
   const folderIdNum = Number(folderId);
   const fileIdNum = Number(fileId);
   const [, setLocation] = useLocation();
@@ -48,250 +54,241 @@ export function FileDetail() {
   const [periodMonth, setPeriodMonth] = useState("");
   const [periodYear, setPeriodYear] = useState("");
   const [columns, setColumns] = useState<any[]>([]);
+  const [initialized, setInitialized] = useState(false);
 
-  // Initialize state when file loads
-  useState(() => {
-    if (file && columns.length === 0) {
-      setBrand(file.brand || "");
-      setPeriodMonth(file.periodMonth ? String(file.periodMonth) : "");
-      setPeriodYear(file.periodYear ? String(file.periodYear) : "");
-      setColumns(file.columns.map(c => ({
+  if (file && !initialized) {
+    setBrand(file.brand ?? "");
+    setPeriodMonth(file.periodMonth ? String(file.periodMonth) : "");
+    setPeriodYear(file.periodYear ? String(file.periodYear) : "");
+    setColumns(
+      file.columns.map((c: any) => ({
         id: c.id,
         detectedType: c.detectedType,
         isMetric: c.isMetric,
-        isDimension: c.isDimension
-      })));
-    }
-  });
-
-  // Re-sync if file changes after confirmation
-  if (file && columns.length === 0) {
-      setBrand(file.brand || "");
-      setPeriodMonth(file.periodMonth ? String(file.periodMonth) : "");
-      setPeriodYear(file.periodYear ? String(file.periodYear) : "");
-      setColumns(file.columns.map(c => ({
-        id: c.id,
-        detectedType: c.detectedType,
-        isMetric: c.isMetric,
-        isDimension: c.isDimension
-      })));
+        isDimension: c.isDimension,
+      }))
+    );
+    setInitialized(true);
   }
-
-  const handleUpdateColumn = (id: number, key: string, value: any) => {
-    setColumns(prev => prev.map(c => c.id === id ? { ...c, [key]: value } : c));
-  };
 
   const handleConfirm = () => {
     confirmFile.mutate(
-      { 
-        fileId: fileIdNum, 
+      {
+        fileId: fileIdNum,
         data: {
           brand: brand || undefined,
           periodMonth: periodMonth ? Number(periodMonth) : undefined,
           periodYear: periodYear ? Number(periodYear) : undefined,
-          columns
-        }
+          columns,
+        },
       },
       {
         onSuccess: () => {
+          toast({ title: "Archivo confirmado", description: "El archivo está listo para análisis." });
           queryClient.invalidateQueries({ queryKey: getGetFileQueryKey(fileIdNum) });
           queryClient.invalidateQueries({ queryKey: getGetFolderQueryKey(folderIdNum) });
-          toast({ title: "Archivo confirmado", description: "La configuración ha sido guardada." });
-          setLocation(`/data-center/${folderIdNum}`);
+          setLocation(`/data-center/${marcaId}/${tipoNegocioId}/${folderId}`);
         },
-        onError: () => {
-          toast({ title: "Error", description: "No se pudo confirmar el archivo.", variant: "destructive" });
-        }
+        onError: () => toast({ title: "Error al confirmar", variant: "destructive" }),
       }
     );
   };
 
   if (isLoading) {
-    return <div className="p-8">Cargando...</div>;
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-muted-foreground">Cargando archivo...</div>
+      </div>
+    );
   }
 
   if (!file) {
-    return <div className="p-8">Archivo no encontrado</div>;
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-muted-foreground">Archivo no encontrado.</div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col h-full bg-background overflow-y-auto">
-      <div className="border-b px-8 py-4 flex items-center justify-between bg-card/50 sticky top-0 z-10">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => setLocation(`/data-center/${folderIdNum}`)} className="shrink-0 -ml-2">
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0 bg-primary/10 text-primary">
-              <FileSpreadsheet className="h-5 w-5" />
-            </div>
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="border-b bg-card px-8 py-5">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3 flex-wrap">
+          <WouterLink href="/data-center" className="hover:text-foreground transition-colors">
+            Centro de Datos
+          </WouterLink>
+          <ChevronRight className="h-3 w-3" />
+          <WouterLink href={`/data-center/${marcaId}`} className="hover:text-foreground transition-colors">
+            Marca
+          </WouterLink>
+          <ChevronRight className="h-3 w-3" />
+          <WouterLink href={`/data-center/${marcaId}/${tipoNegocioId}`} className="hover:text-foreground transition-colors">
+            Tipo de Negocio
+          </WouterLink>
+          <ChevronRight className="h-3 w-3" />
+          <WouterLink href={`/data-center/${marcaId}/${tipoNegocioId}/${folderId}`} className="hover:text-foreground transition-colors">
+            Carpeta
+          </WouterLink>
+          <ChevronRight className="h-3 w-3" />
+          <span className="text-foreground font-medium">{file.originalFilename}</span>
+        </div>
+
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <FileSpreadsheet className="h-8 w-8 text-emerald-600 shrink-0" />
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight">{file.originalFilename}</h1>
-                {file.status === 'confirmed' ? (
-                  <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 gap-1 border-0">
-                    <CheckCircle2 className="h-3 w-3" /> Confirmado
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800 gap-1">
-                    <FileWarning className="h-3 w-3" /> Pendiente Revisión
-                  </Badge>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {file.rowCount} filas • {file.columnCount} columnas
+              <h1 className="text-xl font-bold tracking-tight leading-none">{file.originalFilename}</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {file.rowCount?.toLocaleString("es-AR")} filas · {file.sheetCount} hojas ·{" "}
+                {file.columnCount} columnas · {format(new Date(file.uploadedAt), "d 'de' MMMM 'de' yyyy", { locale: es })}
               </p>
             </div>
           </div>
+          {file.status === "confirmed" ? (
+            <Badge variant="outline" className="gap-1 text-emerald-700 border-emerald-300 bg-emerald-50">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Confirmado
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="gap-1 text-amber-700 border-amber-300 bg-amber-50">
+              <FileWarning className="h-3.5 w-3.5" /> Pendiente de confirmación
+            </Badge>
+          )}
         </div>
-        <Button onClick={handleConfirm} disabled={confirmFile.isPending} className="gap-2">
-          <Save className="h-4 w-4" /> Confirmar Configuración
-        </Button>
       </div>
 
-      <div className="p-8 space-y-8 max-w-6xl mx-auto w-full">
-        
-        {/* Metadatos Globales */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Contexto del Archivo</CardTitle>
-            <CardDescription>
-              Añade el periodo y marca al que corresponde este archivo para que el analista lo identifique correctamente.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <Label>Marca / Entidad</Label>
-                <Input value={brand} onChange={e => setBrand(e.target.value)} placeholder="Ej. Ventas Norte" />
-              </div>
-              <div className="space-y-2">
-                <Label>Año</Label>
-                <Select value={periodYear} onValueChange={setPeriodYear}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona el año" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[2022, 2023, 2024, 2025].map(y => (
-                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Mes</Label>
-                <Select value={periodMonth} onValueChange={setPeriodMonth}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona el mes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({length: 12}, (_, i) => i + 1).map(m => {
-                      const date = new Date(); date.setMonth(m - 1);
-                      return <SelectItem key={m} value={String(m)} className="capitalize">{format(date, 'MMMM', {locale: es})}</SelectItem>
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Columnas */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Configuración de Columnas</CardTitle>
-            <CardDescription>
-              Revisa que el tipo de dato y su rol (Métrica = valores medibles, Dimensión = atributos para agrupar) sean correctos.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[200px]">Nombre</TableHead>
-                  <TableHead className="w-[200px]">Tipo Detectado</TableHead>
-                  <TableHead className="text-center">Métrica</TableHead>
-                  <TableHead className="text-center">Dimensión</TableHead>
-                  <TableHead>Ejemplos</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {file.columns.map((col, index) => {
-                  const stateCol = columns.find(c => c.id === col.id) || col;
-                  return (
-                    <TableRow key={col.id}>
-                      <TableCell className="font-medium">{col.name}</TableCell>
-                      <TableCell>
-                        <Select 
-                          value={stateCol.detectedType} 
-                          onValueChange={(val) => handleUpdateColumn(col.id, 'detectedType', val)}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(TYPE_LABELS).map(([k, v]) => (
-                              <SelectItem key={k} value={k}>{v}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Switch 
-                          checked={stateCol.isMetric} 
-                          onCheckedChange={(checked) => handleUpdateColumn(col.id, 'isMetric', checked)} 
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Switch 
-                          checked={stateCol.isDimension} 
-                          onCheckedChange={(checked) => handleUpdateColumn(col.id, 'isDimension', checked)} 
-                        />
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]" title={col.sampleValues?.join(', ')}>
-                        {col.sampleValues?.slice(0, 3).join(', ')}...
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        {/* Vista Previa */}
-        {file.previewRows && file.previewRows.length > 0 && (
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-8">
+        <div className="max-w-5xl mx-auto space-y-6">
+          {/* Metadata */}
           <Card>
             <CardHeader>
-              <CardTitle>Vista Previa de Datos</CardTitle>
+              <CardTitle className="text-base">Metadatos del archivo</CardTitle>
+              <CardDescription>Revisá y corregí la detección automática del período y marca.</CardDescription>
             </CardHeader>
-            <CardContent className="p-0 overflow-x-auto">
+            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label>Marca del archivo</Label>
+                <Input
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value)}
+                  placeholder="Detectado automáticamente..."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Mes</Label>
+                <Input
+                  type="number" min="1" max="12"
+                  value={periodMonth}
+                  onChange={(e) => setPeriodMonth(e.target.value)}
+                  placeholder="1-12"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Año</Label>
+                <Input
+                  type="number" min="2000" max="2099"
+                  value={periodYear}
+                  onChange={(e) => setPeriodYear(e.target.value)}
+                  placeholder="2024"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Columns */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Columnas detectadas</CardTitle>
+              <CardDescription>
+                Revisá el tipo de dato detectado y marcá cuáles son métricas y cuáles dimensiones.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    {file.columns.map(c => (
-                      <TableHead key={c.id} className="whitespace-nowrap">{c.name}</TableHead>
-                    ))}
+                  <TableRow className="bg-muted/30">
+                    <TableHead>Columna</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead className="text-center">Métrica</TableHead>
+                    <TableHead className="text-center">Dimensión</TableHead>
+                    <TableHead>Valores de muestra</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {file.previewRows.map((row: any, i) => (
-                    <TableRow key={i}>
-                      {file.columns.map(c => (
-                        <TableCell key={`${i}-${c.id}`} className="whitespace-nowrap truncate max-w-[150px]">
-                          {String(row[c.name] ?? '')}
+                  {file.columns.map((col: any, idx: number) => {
+                    const colState = columns[idx] ?? { id: col.id, detectedType: col.detectedType, isMetric: col.isMetric, isDimension: col.isDimension };
+                    return (
+                      <TableRow key={col.id}>
+                        <TableCell className="font-medium text-sm">{col.name}</TableCell>
+                        <TableCell>
+                          <Select
+                            value={colState.detectedType}
+                            onValueChange={(v) => {
+                              const next = [...columns];
+                              if (!next[idx]) next[idx] = { ...colState };
+                              next[idx].detectedType = v;
+                              setColumns(next);
+                            }}
+                          >
+                            <SelectTrigger className="h-8 w-32 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(Object.keys(TYPE_LABELS) as FileColumnDetectedType[]).map((t) => (
+                                <SelectItem key={t} value={t} className="text-xs">{TYPE_LABELS[t]}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
+                        <TableCell className="text-center">
+                          <Switch
+                            checked={colState.isMetric}
+                            onCheckedChange={(v) => {
+                              const next = [...columns];
+                              if (!next[idx]) next[idx] = { ...colState };
+                              next[idx].isMetric = v;
+                              setColumns(next);
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Switch
+                            checked={colState.isDimension}
+                            onCheckedChange={(v) => {
+                              const next = [...columns];
+                              if (!next[idx]) next[idx] = { ...colState };
+                              next[idx].isDimension = v;
+                              setColumns(next);
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                          {col.sampleValues?.slice(0, 3).join(", ")}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
-        )}
-        
-        {/* Spacer for bottom padding */}
-        <div className="h-4"></div>
+
+          {file.status === "pending" && (
+            <div className="flex justify-end">
+              <Button
+                size="lg"
+                onClick={handleConfirm}
+                disabled={confirmFile.isPending}
+                className="gap-2"
+              >
+                <Save className="h-4 w-4" />
+                {confirmFile.isPending ? "Confirmando..." : "Confirmar y activar archivo"}
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

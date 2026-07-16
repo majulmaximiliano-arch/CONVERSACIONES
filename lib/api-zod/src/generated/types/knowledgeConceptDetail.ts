@@ -5,7 +5,7 @@
  * CONVERSACIONES – Conversational Business Intelligence API
  * OpenAPI spec version: 0.1.0
  */
-import type { ConceptMapping } from './conceptMapping';
+import type { KnowledgeConceptDetailColumnMappingsItem } from './knowledgeConceptDetailColumnMappingsItem';
 
 export interface KnowledgeConceptDetail {
   id: number;
@@ -14,5 +14,5 @@ export interface KnowledgeConceptDetail {
   category: string;
   /** @nullable */
   formula?: string | null;
-  columnMappings: ConceptMapping[];
+  columnMappings: KnowledgeConceptDetailColumnMappingsItem[];
 }

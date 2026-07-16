@@ -6,7 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export * from './conceptMapping';
 export * from './conversation';
 export * from './conversationDetail';
 export * from './conversationInput';
@@ -24,24 +23,25 @@ export * from './fileDetailPreviewRowsItem';
 export * from './fileDetailStatus';
 export * from './folder';
 export * from './folderDetail';
-export * from './folderDetailScope';
 export * from './folderInput';
-export * from './folderInputScope';
 export * from './folderMonthlyStatus';
 export * from './folderPermission';
 export * from './folderPermissionInput';
-export * from './folderScope';
 export * from './folderUpdate';
-export * from './folderUpdateScope';
 export * from './getDashboardOverviewParams';
 export * from './getMonthlyStatusParams';
 export * from './healthStatus';
 export * from './knowledgeConcept';
 export * from './knowledgeConceptDetail';
+export * from './knowledgeConceptDetailColumnMappingsItem';
 export * from './kpiItem';
 export * from './kpiItemTrend';
 export * from './listConversationsParams';
 export * from './listFoldersParams';
+export * from './listMarcasParams';
+export * from './marca';
+export * from './marcaInput';
+export * from './marcaUpdate';
 export * from './message';
 export * from './messageChartData';
 export * from './messageInput';
@@ -49,6 +49,9 @@ export * from './messageResponse';
 export * from './messageRole';
 export * from './sessionInfo';
 export * from './sessionInput';
+export * from './tipoNegocio';
+export * from './tipoNegocioInput';
+export * from './tipoNegocioUpdate';
 export * from './user';
 export * from './userInput';
 export * from './userInputRole';

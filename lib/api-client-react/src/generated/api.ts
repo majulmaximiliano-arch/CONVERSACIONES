@@ -41,10 +41,17 @@ import type {
   KnowledgeConceptDetail,
   ListConversationsParams,
   ListFoldersParams,
+  ListMarcasParams,
+  Marca,
+  MarcaInput,
+  MarcaUpdate,
   MessageInput,
   MessageResponse,
   SessionInfo,
   SessionInput,
+  TipoNegocio,
+  TipoNegocioInput,
+  TipoNegocioUpdate,
   User,
   UserInput,
   UserUpdate
@@ -739,6 +746,677 @@ export const useClearSession = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getClearSessionMutationOptions(options));
+    }
+
+export const getListMarcasUrl = (params?: ListMarcasParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/marcas?${stringifiedParams}` : `/api/marcas`
+}
+
+/**
+ * @summary List all brands
+ */
+export const listMarcas = async (params?: ListMarcasParams, options?: RequestInit): Promise<Marca[]> => {
+
+  return customFetch<Marca[]>(getListMarcasUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMarcasQueryKey = (params?: ListMarcasParams,) => {
+    return [
+    `/api/marcas`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMarcasQueryOptions = <TData = Awaited<ReturnType<typeof listMarcas>>, TError = ErrorType<unknown>>(params?: ListMarcasParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMarcas>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMarcasQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMarcas>>> = ({ signal }) => listMarcas(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMarcas>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMarcasQueryResult = NonNullable<Awaited<ReturnType<typeof listMarcas>>>
+export type ListMarcasQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all brands
+ */
+
+export function useListMarcas<TData = Awaited<ReturnType<typeof listMarcas>>, TError = ErrorType<unknown>>(
+ params?: ListMarcasParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMarcas>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMarcasQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateMarcaUrl = () => {
+
+
+
+
+  return `/api/marcas`
+}
+
+/**
+ * @summary Create a brand (admin only)
+ */
+export const createMarca = async (marcaInput: MarcaInput, options?: RequestInit): Promise<Marca> => {
+
+  return customFetch<Marca>(getCreateMarcaUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(marcaInput)
+  }
+);}
+
+
+
+
+
+export const getCreateMarcaMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMarca>>, TError,{data: BodyType<MarcaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMarca>>, TError,{data: BodyType<MarcaInput>}, TContext> => {
+
+const mutationKey = ['createMarca'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMarca>>, {data: BodyType<MarcaInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMarca(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMarcaMutationResult = NonNullable<Awaited<ReturnType<typeof createMarca>>>
+    export type CreateMarcaMutationBody = BodyType<MarcaInput>
+    export type CreateMarcaMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a brand (admin only)
+ */
+export const useCreateMarca = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMarca>>, TError,{data: BodyType<MarcaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMarca>>,
+        TError,
+        {data: BodyType<MarcaInput>},
+        TContext
+      > => {
+      return useMutation(getCreateMarcaMutationOptions(options));
+    }
+
+export const getGetMarcaUrl = (marcaId: number,) => {
+
+
+
+
+  return `/api/marcas/${marcaId}`
+}
+
+/**
+ * @summary Get a brand by ID
+ */
+export const getMarca = async (marcaId: number, options?: RequestInit): Promise<Marca> => {
+
+  return customFetch<Marca>(getGetMarcaUrl(marcaId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMarcaQueryKey = (marcaId: number,) => {
+    return [
+    `/api/marcas/${marcaId}`
+    ] as const;
+    }
+
+
+export const getGetMarcaQueryOptions = <TData = Awaited<ReturnType<typeof getMarca>>, TError = ErrorType<void>>(marcaId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarca>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMarcaQueryKey(marcaId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMarca>>> = ({ signal }) => getMarca(marcaId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: marcaId !== null && marcaId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMarca>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMarcaQueryResult = NonNullable<Awaited<ReturnType<typeof getMarca>>>
+export type GetMarcaQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a brand by ID
+ */
+
+export function useGetMarca<TData = Awaited<ReturnType<typeof getMarca>>, TError = ErrorType<void>>(
+ marcaId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarca>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMarcaQueryOptions(marcaId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateMarcaUrl = (marcaId: number,) => {
+
+
+
+
+  return `/api/marcas/${marcaId}`
+}
+
+/**
+ * @summary Update a brand (admin only)
+ */
+export const updateMarca = async (marcaId: number,
+    marcaUpdate: MarcaUpdate, options?: RequestInit): Promise<Marca> => {
+
+  return customFetch<Marca>(getUpdateMarcaUrl(marcaId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(marcaUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateMarcaMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMarca>>, TError,{marcaId: number;data: BodyType<MarcaUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMarca>>, TError,{marcaId: number;data: BodyType<MarcaUpdate>}, TContext> => {
+
+const mutationKey = ['updateMarca'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMarca>>, {marcaId: number;data: BodyType<MarcaUpdate>}> = (props) => {
+          const {marcaId,data} = props ?? {};
+
+          return  updateMarca(marcaId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMarcaMutationResult = NonNullable<Awaited<ReturnType<typeof updateMarca>>>
+    export type UpdateMarcaMutationBody = BodyType<MarcaUpdate>
+    export type UpdateMarcaMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a brand (admin only)
+ */
+export const useUpdateMarca = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMarca>>, TError,{marcaId: number;data: BodyType<MarcaUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMarca>>,
+        TError,
+        {marcaId: number;data: BodyType<MarcaUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateMarcaMutationOptions(options));
+    }
+
+export const getDeleteMarcaUrl = (marcaId: number,) => {
+
+
+
+
+  return `/api/marcas/${marcaId}`
+}
+
+/**
+ * @summary Delete a brand (admin only)
+ */
+export const deleteMarca = async (marcaId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteMarcaUrl(marcaId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteMarcaMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMarca>>, TError,{marcaId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMarca>>, TError,{marcaId: number}, TContext> => {
+
+const mutationKey = ['deleteMarca'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMarca>>, {marcaId: number}> = (props) => {
+          const {marcaId} = props ?? {};
+
+          return  deleteMarca(marcaId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMarcaMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMarca>>>
+
+    export type DeleteMarcaMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a brand (admin only)
+ */
+export const useDeleteMarca = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMarca>>, TError,{marcaId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMarca>>,
+        TError,
+        {marcaId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteMarcaMutationOptions(options));
+    }
+
+export const getListTiposNegocioUrl = (marcaId: number,) => {
+
+
+
+
+  return `/api/marcas/${marcaId}/tipos-negocio`
+}
+
+/**
+ * @summary List business types for a brand
+ */
+export const listTiposNegocio = async (marcaId: number, options?: RequestInit): Promise<TipoNegocio[]> => {
+
+  return customFetch<TipoNegocio[]>(getListTiposNegocioUrl(marcaId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTiposNegocioQueryKey = (marcaId: number,) => {
+    return [
+    `/api/marcas/${marcaId}/tipos-negocio`
+    ] as const;
+    }
+
+
+export const getListTiposNegocioQueryOptions = <TData = Awaited<ReturnType<typeof listTiposNegocio>>, TError = ErrorType<unknown>>(marcaId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTiposNegocio>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTiposNegocioQueryKey(marcaId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTiposNegocio>>> = ({ signal }) => listTiposNegocio(marcaId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: marcaId !== null && marcaId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTiposNegocio>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTiposNegocioQueryResult = NonNullable<Awaited<ReturnType<typeof listTiposNegocio>>>
+export type ListTiposNegocioQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List business types for a brand
+ */
+
+export function useListTiposNegocio<TData = Awaited<ReturnType<typeof listTiposNegocio>>, TError = ErrorType<unknown>>(
+ marcaId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTiposNegocio>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTiposNegocioQueryOptions(marcaId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTipoNegocioUrl = (marcaId: number,) => {
+
+
+
+
+  return `/api/marcas/${marcaId}/tipos-negocio`
+}
+
+/**
+ * @summary Create a business type (admin only)
+ */
+export const createTipoNegocio = async (marcaId: number,
+    tipoNegocioInput: TipoNegocioInput, options?: RequestInit): Promise<TipoNegocio> => {
+
+  return customFetch<TipoNegocio>(getCreateTipoNegocioUrl(marcaId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(tipoNegocioInput)
+  }
+);}
+
+
+
+
+
+export const getCreateTipoNegocioMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTipoNegocio>>, TError,{marcaId: number;data: BodyType<TipoNegocioInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTipoNegocio>>, TError,{marcaId: number;data: BodyType<TipoNegocioInput>}, TContext> => {
+
+const mutationKey = ['createTipoNegocio'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTipoNegocio>>, {marcaId: number;data: BodyType<TipoNegocioInput>}> = (props) => {
+          const {marcaId,data} = props ?? {};
+
+          return  createTipoNegocio(marcaId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTipoNegocioMutationResult = NonNullable<Awaited<ReturnType<typeof createTipoNegocio>>>
+    export type CreateTipoNegocioMutationBody = BodyType<TipoNegocioInput>
+    export type CreateTipoNegocioMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a business type (admin only)
+ */
+export const useCreateTipoNegocio = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTipoNegocio>>, TError,{marcaId: number;data: BodyType<TipoNegocioInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTipoNegocio>>,
+        TError,
+        {marcaId: number;data: BodyType<TipoNegocioInput>},
+        TContext
+      > => {
+      return useMutation(getCreateTipoNegocioMutationOptions(options));
+    }
+
+export const getUpdateTipoNegocioUrl = (marcaId: number,
+    tipoNegocioId: number,) => {
+
+
+
+
+  return `/api/marcas/${marcaId}/tipos-negocio/${tipoNegocioId}`
+}
+
+/**
+ * @summary Update a business type (admin only)
+ */
+export const updateTipoNegocio = async (marcaId: number,
+    tipoNegocioId: number,
+    tipoNegocioUpdate: TipoNegocioUpdate, options?: RequestInit): Promise<TipoNegocio> => {
+
+  return customFetch<TipoNegocio>(getUpdateTipoNegocioUrl(marcaId,tipoNegocioId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(tipoNegocioUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateTipoNegocioMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTipoNegocio>>, TError,{marcaId: number;tipoNegocioId: number;data: BodyType<TipoNegocioUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTipoNegocio>>, TError,{marcaId: number;tipoNegocioId: number;data: BodyType<TipoNegocioUpdate>}, TContext> => {
+
+const mutationKey = ['updateTipoNegocio'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTipoNegocio>>, {marcaId: number;tipoNegocioId: number;data: BodyType<TipoNegocioUpdate>}> = (props) => {
+          const {marcaId,tipoNegocioId,data} = props ?? {};
+
+          return  updateTipoNegocio(marcaId,tipoNegocioId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTipoNegocioMutationResult = NonNullable<Awaited<ReturnType<typeof updateTipoNegocio>>>
+    export type UpdateTipoNegocioMutationBody = BodyType<TipoNegocioUpdate>
+    export type UpdateTipoNegocioMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a business type (admin only)
+ */
+export const useUpdateTipoNegocio = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTipoNegocio>>, TError,{marcaId: number;tipoNegocioId: number;data: BodyType<TipoNegocioUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTipoNegocio>>,
+        TError,
+        {marcaId: number;tipoNegocioId: number;data: BodyType<TipoNegocioUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateTipoNegocioMutationOptions(options));
+    }
+
+export const getDeleteTipoNegocioUrl = (marcaId: number,
+    tipoNegocioId: number,) => {
+
+
+
+
+  return `/api/marcas/${marcaId}/tipos-negocio/${tipoNegocioId}`
+}
+
+/**
+ * @summary Delete a business type (admin only)
+ */
+export const deleteTipoNegocio = async (marcaId: number,
+    tipoNegocioId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteTipoNegocioUrl(marcaId,tipoNegocioId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteTipoNegocioMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTipoNegocio>>, TError,{marcaId: number;tipoNegocioId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTipoNegocio>>, TError,{marcaId: number;tipoNegocioId: number}, TContext> => {
+
+const mutationKey = ['deleteTipoNegocio'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTipoNegocio>>, {marcaId: number;tipoNegocioId: number}> = (props) => {
+          const {marcaId,tipoNegocioId} = props ?? {};
+
+          return  deleteTipoNegocio(marcaId,tipoNegocioId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTipoNegocioMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTipoNegocio>>>
+
+    export type DeleteTipoNegocioMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a business type (admin only)
+ */
+export const useDeleteTipoNegocio = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTipoNegocio>>, TError,{marcaId: number;tipoNegocioId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTipoNegocio>>,
+        TError,
+        {marcaId: number;tipoNegocioId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteTipoNegocioMutationOptions(options));
     }
 
 export const getListFoldersUrl = (params?: ListFoldersParams,) => {

@@ -10,5 +10,5 @@ import type { UserInputRole } from './userInputRole';
 export interface UserInput {
   name: string;
   email: string;
-  role: UserInputRole;
+  role?: UserInputRole;
 }

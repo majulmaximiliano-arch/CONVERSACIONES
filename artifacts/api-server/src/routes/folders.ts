@@ -1,7 +1,11 @@
 import { Router, type IRouter } from "express";
 import { eq, and, sql } from "drizzle-orm";
-import { db, foldersTable, folderPermissionsTable, usersTable, dataFilesTable } from "@workspace/db";
 import {
+  db, foldersTable, folderPermissionsTable, usersTable,
+  dataFilesTable, tiposNegocioTable, marcasTable,
+} from "@workspace/db";
+import {
+  ListFoldersQueryParams,
   ListFoldersResponse,
   CreateFolderBody,
   CreateFolderResponse,
@@ -23,64 +27,84 @@ import { canAccessFolder } from "../lib/authorize";
 
 const router: IRouter = Router();
 
-// ── List folders — filtered by session user's permissions ─────────────────────
+// ── Shared select helper ──────────────────────────────────────────────────────
+
+const folderSelect = {
+  id: foldersTable.id,
+  tipoNegocioId: foldersTable.tipoNegocioId,
+  tipoNegocioName: tiposNegocioTable.name,
+  marcaId: marcasTable.id,
+  marcaName: marcasTable.name,
+  name: foldersTable.name,
+  description: foldersTable.description,
+  color: foldersTable.color,
+  icon: foldersTable.icon,
+  createdAt: foldersTable.createdAt,
+  fileCount: sql<number>`count(${dataFilesTable.id})::int`,
+};
+
+function folderJoins(q: ReturnType<typeof db.select>) {
+  return q
+    .from(foldersTable)
+    .leftJoin(tiposNegocioTable, eq(tiposNegocioTable.id, foldersTable.tipoNegocioId))
+    .leftJoin(marcasTable, eq(marcasTable.id, tiposNegocioTable.marcaId))
+    .leftJoin(dataFilesTable, eq(dataFilesTable.folderId, foldersTable.id));
+}
+
+// ── List folders ──────────────────────────────────────────────────────────────
 
 router.get("/folders", requireSession, async (req, res): Promise<void> => {
+  const params = ListFoldersQueryParams.safeParse(req.query);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
   const user = req.sessionUser!;
+  const tipoFilter = params.data.tipoNegocioId;
 
   let folders;
 
   if (user.role === "admin") {
-    folders = await db
-      .select({
-        id: foldersTable.id,
-        name: foldersTable.name,
-        description: foldersTable.description,
-        color: foldersTable.color,
-        icon: foldersTable.icon,
-        scope: foldersTable.scope,
-        brand: foldersTable.brand,
-        createdAt: foldersTable.createdAt,
-        fileCount: sql<number>`count(${dataFilesTable.id})::int`,
-      })
-      .from(foldersTable)
-      .leftJoin(dataFilesTable, eq(dataFilesTable.folderId, foldersTable.id))
-      .groupBy(foldersTable.id)
+    const q = db.select(folderSelect);
+    const joined = folderJoins(q as any);
+    folders = await joined
+      .where(tipoFilter ? eq(foldersTable.tipoNegocioId, tipoFilter) : sql`TRUE`)
+      .groupBy(foldersTable.id, tiposNegocioTable.name, marcasTable.id, marcasTable.name)
       .orderBy(foldersTable.name);
   } else {
-    const permissions = await db
-      .select({ folderId: folderPermissionsTable.folderId })
-      .from(folderPermissionsTable)
-      .where(eq(folderPermissionsTable.userId, user.id));
+    // Hierarchical access: explicit folder permission OR tipo_negocio permission OR marca permission
+    const accessible = await db.execute(sql`
+      SELECT DISTINCT f.id
+      FROM folders f
+      LEFT JOIN tipos_negocio tn ON tn.id = f.tipo_negocio_id
+      LEFT JOIN marcas m ON m.id = tn.marca_id
+      WHERE
+        EXISTS (SELECT 1 FROM folder_permissions fp WHERE fp.folder_id = f.id AND fp.user_id = ${user.id})
+        OR EXISTS (SELECT 1 FROM user_tipo_negocio_permissions utp WHERE utp.tipo_negocio_id = f.tipo_negocio_id AND utp.user_id = ${user.id})
+        OR EXISTS (SELECT 1 FROM user_marca_permissions ump WHERE ump.marca_id = m.id AND ump.user_id = ${user.id})
+    `);
 
-    const folderIds = permissions.map((p) => p.folderId);
+    const folderIds = (accessible.rows as any[]).map((r) => r.id as number);
 
     if (folderIds.length === 0) {
       res.json([]);
       return;
     }
 
-    folders = await db
-      .select({
-        id: foldersTable.id,
-        name: foldersTable.name,
-        description: foldersTable.description,
-        color: foldersTable.color,
-        icon: foldersTable.icon,
-        scope: foldersTable.scope,
-        brand: foldersTable.brand,
-        createdAt: foldersTable.createdAt,
-        fileCount: sql<number>`count(${dataFilesTable.id})::int`,
-      })
-      .from(foldersTable)
-      .leftJoin(dataFilesTable, eq(dataFilesTable.folderId, foldersTable.id))
-      .where(sql`${foldersTable.id} = ANY(ARRAY[${sql.join(folderIds.map((id) => sql`${id}`), sql`, `)}]::int[])`)
-      .groupBy(foldersTable.id)
+    const q = db.select(folderSelect);
+    const joined = folderJoins(q as any);
+    const idFilter = sql`${foldersTable.id} = ANY(ARRAY[${sql.join(folderIds.map((id) => sql`${id}`), sql`, `)}]::int[])`;
+    folders = await joined
+      .where(tipoFilter ? and(idFilter, eq(foldersTable.tipoNegocioId, tipoFilter)) : idFilter)
+      .groupBy(foldersTable.id, tiposNegocioTable.name, marcasTable.id, marcasTable.name)
       .orderBy(foldersTable.name);
   }
 
   res.json(ListFoldersResponse.parse(folders));
 });
+
+// ── Create folder ─────────────────────────────────────────────────────────────
 
 router.post("/folders", requireSession, requireAdmin, async (req, res): Promise<void> => {
   const parsed = CreateFolderBody.safeParse(req.body);
@@ -90,8 +114,25 @@ router.post("/folders", requireSession, requireAdmin, async (req, res): Promise<
   }
 
   const [folder] = await db.insert(foldersTable).values(parsed.data).returning();
-  res.status(201).json(CreateFolderResponse.parse({ ...folder, fileCount: 0 }));
+
+  const [meta] = await db
+    .select({ tipoNegocioName: tiposNegocioTable.name, marcaId: marcasTable.id, marcaName: marcasTable.name })
+    .from(tiposNegocioTable)
+    .leftJoin(marcasTable, eq(marcasTable.id, tiposNegocioTable.marcaId))
+    .where(eq(tiposNegocioTable.id, folder.tipoNegocioId));
+
+  res.status(201).json(
+    CreateFolderResponse.parse({
+      ...folder,
+      tipoNegocioName: meta?.tipoNegocioName ?? "",
+      marcaId: meta?.marcaId ?? 0,
+      marcaName: meta?.marcaName ?? "",
+      fileCount: 0,
+    }),
+  );
 });
+
+// ── Get folder ────────────────────────────────────────────────────────────────
 
 router.get("/folders/:folderId", requireSession, async (req, res): Promise<void> => {
   const params = GetFolderParams.safeParse(req.params);
@@ -105,7 +146,24 @@ router.get("/folders/:folderId", requireSession, async (req, res): Promise<void>
     return;
   }
 
-  const [folder] = await db.select().from(foldersTable).where(eq(foldersTable.id, params.data.folderId));
+  const [folder] = await db
+    .select({
+      id: foldersTable.id,
+      tipoNegocioId: foldersTable.tipoNegocioId,
+      tipoNegocioName: tiposNegocioTable.name,
+      marcaId: marcasTable.id,
+      marcaName: marcasTable.name,
+      name: foldersTable.name,
+      description: foldersTable.description,
+      color: foldersTable.color,
+      icon: foldersTable.icon,
+      createdAt: foldersTable.createdAt,
+    })
+    .from(foldersTable)
+    .leftJoin(tiposNegocioTable, eq(tiposNegocioTable.id, foldersTable.tipoNegocioId))
+    .leftJoin(marcasTable, eq(marcasTable.id, tiposNegocioTable.marcaId))
+    .where(eq(foldersTable.id, params.data.folderId));
+
   if (!folder) {
     res.status(404).json({ error: "Carpeta no encontrada" });
     return;
@@ -131,6 +189,8 @@ router.get("/folders/:folderId", requireSession, async (req, res): Promise<void>
   res.json(GetFolderResponse.parse({ ...folder, files, permissions }));
 });
 
+// ── Update folder ─────────────────────────────────────────────────────────────
+
 router.patch("/folders/:folderId", requireSession, requireAdmin, async (req, res): Promise<void> => {
   const params = UpdateFolderParams.safeParse(req.params);
   if (!params.success) {
@@ -155,13 +215,29 @@ router.patch("/folders/:folderId", requireSession, requireAdmin, async (req, res
     return;
   }
 
+  const [meta] = await db
+    .select({ tipoNegocioName: tiposNegocioTable.name, marcaId: marcasTable.id, marcaName: marcasTable.name })
+    .from(tiposNegocioTable)
+    .leftJoin(marcasTable, eq(marcasTable.id, tiposNegocioTable.marcaId))
+    .where(eq(tiposNegocioTable.id, folder.tipoNegocioId));
+
   const [{ fileCount }] = await db
     .select({ fileCount: sql<number>`count(*)::int` })
     .from(dataFilesTable)
     .where(eq(dataFilesTable.folderId, folder.id));
 
-  res.json(UpdateFolderResponse.parse({ ...folder, fileCount }));
+  res.json(
+    UpdateFolderResponse.parse({
+      ...folder,
+      tipoNegocioName: meta?.tipoNegocioName ?? "",
+      marcaId: meta?.marcaId ?? 0,
+      marcaName: meta?.marcaName ?? "",
+      fileCount,
+    }),
+  );
 });
+
+// ── Delete folder ─────────────────────────────────────────────────────────────
 
 router.delete("/folders/:folderId", requireSession, requireAdmin, async (req, res): Promise<void> => {
   const params = DeleteFolderParams.safeParse(req.params);
@@ -174,7 +250,7 @@ router.delete("/folders/:folderId", requireSession, requireAdmin, async (req, re
   res.sendStatus(204);
 });
 
-// ── Folder Permissions — admin only ──────────────────────────────────────────
+// ── Folder Permissions ────────────────────────────────────────────────────────
 
 router.get("/folders/:folderId/permissions", requireSession, requireAdmin, async (req, res): Promise<void> => {
   const params = GetFolderPermissionsParams.safeParse(req.params);

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import {
   db,
   conversationsTable,
@@ -7,7 +7,6 @@ import {
   dataFilesTable,
   fileColumnsTable,
   dataRowsTable,
-  folderPermissionsTable,
   foldersTable,
 } from "@workspace/db";
 import { SendMessageBody, SendMessageParams } from "@workspace/api-zod";
@@ -26,7 +25,6 @@ router.post("/conversations/:conversationId/messages", requireSession, async (re
 
   const user = req.sessionUser!;
 
-  // Verify the user owns (or can access as admin) this conversation
   const conversation = await canAccessConversation(user, params.data.conversationId);
   if (!conversation) {
     res.status(404).json({ error: "Conversación no encontrada" });
@@ -49,7 +47,7 @@ router.post("/conversations/:conversationId/messages", requireSession, async (re
     })
     .returning();
 
-  // Get conversation history (last 10 messages for context)
+  // Get conversation history (last 10 messages)
   const history = await db
     .select()
     .from(messagesTable)
@@ -59,28 +57,27 @@ router.post("/conversations/:conversationId/messages", requireSession, async (re
 
   const historyMessages = history.reverse().filter((m) => m.id !== userMessage.id);
 
-  // Get folders the session user can access (from DB, not from request body)
-  const userFolders = await db
-    .select({
-      folderId: folderPermissionsTable.folderId,
-      folderName: foldersTable.name,
-    })
-    .from(folderPermissionsTable)
-    .leftJoin(foldersTable, eq(foldersTable.id, folderPermissionsTable.folderId))
-    .where(eq(folderPermissionsTable.userId, user.id));
-
-  const accessibleFolderIds = userFolders.map((f) => f.folderId);
-
-  // Admins can access all folders
+  // Get folders accessible via hierarchical permissions (folder | tipo_negocio | marca)
+  let accessibleFolderIds: number[] = [];
   let folderNames: string[] = [];
+
   if (user.role === "admin") {
-    const allFolders = await db.select({ name: foldersTable.name }).from(foldersTable);
+    const allFolders = await db.select({ id: foldersTable.id, name: foldersTable.name }).from(foldersTable);
+    accessibleFolderIds = allFolders.map((f) => f.id);
     folderNames = allFolders.map((f) => f.name);
-    const allFiles = await db.select({ folderId: dataFilesTable.folderId }).from(dataFilesTable);
-    const allFolderIds = [...new Set(allFiles.map((f) => f.folderId))];
-    accessibleFolderIds.push(...allFolderIds.filter((id) => !accessibleFolderIds.includes(id)));
   } else {
-    folderNames = userFolders.map((f) => f.folderName).filter(Boolean) as string[];
+    const result = await db.execute(sql`
+      SELECT DISTINCT f.id, f.name
+      FROM folders f
+      LEFT JOIN tipos_negocio tn ON tn.id = f.tipo_negocio_id
+      LEFT JOIN marcas m ON m.id = tn.marca_id
+      WHERE
+        EXISTS (SELECT 1 FROM folder_permissions fp WHERE fp.folder_id = f.id AND fp.user_id = ${user.id})
+        OR EXISTS (SELECT 1 FROM user_tipo_negocio_permissions utp WHERE utp.tipo_negocio_id = f.tipo_negocio_id AND utp.user_id = ${user.id})
+        OR EXISTS (SELECT 1 FROM user_marca_permissions ump WHERE ump.marca_id = m.id AND ump.user_id = ${user.id})
+    `);
+    accessibleFolderIds = (result.rows as any[]).map((r) => r.id as number);
+    folderNames = (result.rows as any[]).map((r) => r.name as string);
   }
 
   const dataContext = await buildDataContext(parsed.data.content, accessibleFolderIds, folderNames);
@@ -109,38 +106,13 @@ router.post("/conversations/:conversationId/messages", requireSession, async (re
     });
 
     const rawText = response.content[0]?.type === "text" ? response.content[0].text : "";
-
-    const jsonMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/);
-    if (jsonMatch) {
-      try {
-        const structured = JSON.parse(jsonMatch[1]);
-        aiResponseText = structured.answer ?? rawText;
-        chartData = structured.chart ?? null;
-        kpis = structured.kpis ?? [];
-        insights = structured.insights ?? [];
-      } catch {
-        aiResponseText = rawText;
-      }
-    } else {
-      aiResponseText = rawText;
-    }
+    const parsed2 = parseAIResponse(rawText);
+    aiResponseText = parsed2.answer || rawText;
+    chartData = parsed2.chart || null;
+    kpis = parsed2.kpis || [];
+    insights = parsed2.insights || [];
   } catch (err) {
-    req.log.error({ err }, "Error calling Claude API");
     aiResponseText = "Lo siento, hubo un error al procesar tu consulta. Por favor intentá de nuevo.";
-  }
-
-  // Auto-generate title from first user message
-  if (historyMessages.length === 0) {
-    const title = parsed.data.content.slice(0, 60) + (parsed.data.content.length > 60 ? "..." : "");
-    await db
-      .update(conversationsTable)
-      .set({ title, updatedAt: new Date() })
-      .where(eq(conversationsTable.id, params.data.conversationId));
-  } else {
-    await db
-      .update(conversationsTable)
-      .set({ updatedAt: new Date() })
-      .where(eq(conversationsTable.id, params.data.conversationId));
   }
 
   const [assistantMessage] = await db
@@ -156,79 +128,87 @@ router.post("/conversations/:conversationId/messages", requireSession, async (re
     })
     .returning();
 
+  // Update conversation title if first exchange
+  if (historyMessages.length === 0) {
+    const title = parsed.data.content.slice(0, 60) + (parsed.data.content.length > 60 ? "..." : "");
+    await db
+      .update(conversationsTable)
+      .set({ title, updatedAt: new Date() })
+      .where(eq(conversationsTable.id, params.data.conversationId));
+  } else {
+    await db
+      .update(conversationsTable)
+      .set({ updatedAt: new Date() })
+      .where(eq(conversationsTable.id, params.data.conversationId));
+  }
+
   res.json({ userMessage, assistantMessage });
 });
 
-// ── Private helpers ───────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-async function buildDataContext(
-  _question: string,
-  accessibleFolderIds: number[],
-  folderNames: string[],
-): Promise<{ data: string; filesConsulted: string[] }> {
-  if (accessibleFolderIds.length === 0) {
-    return { data: "El usuario no tiene acceso a ninguna carpeta de datos.", filesConsulted: [] };
+async function buildDataContext(question: string, folderIds: number[], folderNames: string[]) {
+  const filesConsulted: string[] = [];
+
+  if (folderIds.length === 0) {
+    return { data: "", filesConsulted };
   }
 
+  const idList = sql.join(folderIds.map((id) => sql`${id}`), sql`, `);
   const files = await db
     .select()
     .from(dataFilesTable)
-    .where(eq(dataFilesTable.status, "confirmed"));
+    .where(sql`${dataFilesTable.folderId} = ANY(ARRAY[${idList}]::int[]) AND ${dataFilesTable.status} = 'confirmed'`)
+    .orderBy(desc(dataFilesTable.uploadedAt))
+    .limit(5);
 
-  const accessibleFiles = files.filter((f) => accessibleFolderIds.includes(f.folderId));
-
-  if (accessibleFiles.length === 0) {
-    return {
-      data: `El usuario tiene acceso a las carpetas: ${folderNames.join(", ")}. Sin embargo, no hay archivos confirmados aún.`,
-      filesConsulted: [],
-    };
+  if (files.length === 0) {
+    return { data: "", filesConsulted };
   }
 
-  const filesConsulted: string[] = [];
-  const dataChunks: string[] = [];
+  const sections: string[] = [];
+  const keywords = question.toLowerCase();
 
-  for (const file of accessibleFiles.slice(0, 5)) {
+  for (const file of files) {
     const columns = await db.select().from(fileColumnsTable).where(eq(fileColumnsTable.fileId, file.id));
-    const rows = await db.select().from(dataRowsTable).where(eq(dataRowsTable.fileId, file.id)).limit(50);
+    const rows = await db
+      .select()
+      .from(dataRowsTable)
+      .where(eq(dataRowsTable.fileId, file.id))
+      .limit(50);
 
     if (rows.length === 0) continue;
 
-    const fileLabel = `${file.originalFilename}${file.periodMonth ? ` (${file.periodMonth}/${file.periodYear})` : ""}`;
-    filesConsulted.push(fileLabel);
+    filesConsulted.push(file.originalFilename);
+    const colNames = columns.map((c) => c.name).join(", ");
+    const sampleData = rows
+      .slice(0, 20)
+      .map((r) => JSON.stringify(r.rowData))
+      .join("\n");
 
-    const colSummary = columns
-      .map((c) => `${c.name} (${c.detectedType}${c.isMetric ? ", métrica" : ""}${c.isDimension ? ", dimensión" : ""})`)
-      .join(", ");
-
-    const metrics = columns.filter((c) => c.isMetric);
-    const summaries: string[] = [];
-    for (const metric of metrics.slice(0, 5)) {
-      const values = rows
-        .map((r) => Number((r.rowData as Record<string, unknown>)[metric.name]))
-        .filter((n) => !isNaN(n));
-      if (values.length > 0) {
-        const total = values.reduce((a, b) => a + b, 0);
-        const avg = total / values.length;
-        const max = Math.max(...values);
-        const min = Math.min(...values);
-        summaries.push(`${metric.name}: total=${total.toFixed(2)}, promedio=${avg.toFixed(2)}, max=${max.toFixed(2)}, min=${min.toFixed(2)}`);
-      }
-    }
-
-    const sampleRows = rows.slice(0, 10).map((r) => JSON.stringify(r.rowData)).join("\n");
-
-    dataChunks.push(
-      `### Archivo: ${fileLabel}\nColumnas: ${colSummary}\n${summaries.length > 0 ? `\nResumen métricas:\n${summaries.join("\n")}` : ""}\n\nMuestra de datos (${Math.min(10, rows.length)} de ${rows.length} filas):\n${sampleRows}`,
+    sections.push(
+      `### Archivo: ${file.originalFilename}\nColumnas: ${colNames}\nDatos (muestra):\n${sampleData}`,
     );
   }
 
-  return { data: dataChunks.join("\n\n---\n\n"), filesConsulted };
+  return { data: sections.join("\n\n"), filesConsulted };
+}
+
+function parseAIResponse(text: string) {
+  try {
+    const jsonMatch = text.match(/```json\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[1]);
+    }
+    return { answer: text };
+  } catch {
+    return { answer: text };
+  }
 }
 
 function buildSystemPrompt(folderNames: string[]): string {
-  return `Sos un Gerente de Control de Gestión experto en concesionarios automotrices, trabajando dentro de CONVERSACIONES, una plataforma de inteligencia de negocio conversacional.
-
-Tu rol es responder preguntas sobre el negocio de manera clara, precisa y accionable. No sos un chatbot genérico — sos un analista experto que conoce profundamente el negocio automotriz.
+  return `Sos un analista de inteligencia de negocios especializado en concesionarias automotrices.
+Respondés preguntas sobre datos de ventas, postventa, finanzas y operaciones.
 
 Carpetas de datos disponibles para este usuario: ${folderNames.join(", ") || "ninguna"}.
 
@@ -267,10 +247,7 @@ Cuando tengas datos suficientes para una visualización, respondé con JSON estr
 Si no hay datos suficientes para un gráfico, respondé solo con texto explicativo (sin JSON).`;
 }
 
-function buildContextualQuestion(
-  question: string,
-  dataContext: { data: string },
-): string {
+function buildContextualQuestion(question: string, dataContext: { data: string }): string {
   const contextSection = dataContext.data
     ? `\n\n## Datos disponibles:\n${dataContext.data}`
     : "\n\n(No hay datos disponibles aún)";

@@ -1,10 +1,10 @@
 import { Link as WouterLink, useLocation } from "wouter";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useGetSession, useClearSession } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetSessionQueryKey } from "@workspace/api-client-react";
-import { Database, Settings, LogOut, MessageSquare, History, Users, FolderOpen } from "lucide-react";
+import { Database, Settings, LogOut, MessageSquare, History, Users, FolderOpen, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Sidebar() {
@@ -33,6 +33,7 @@ export function Sidebar() {
   ];
 
   if (isAdmin) {
+    navItems.push({ icon: Building2, label: "Marcas", href: "/admin/marcas", match: "/admin/marcas" });
     navItems.push({ icon: FolderOpen, label: "Carpetas", href: "/admin/folders", match: "/admin/folders" });
     navItems.push({ icon: Users, label: "Usuarios", href: "/admin/users", match: "/admin/users" });
   }
@@ -52,7 +53,9 @@ export function Sidebar() {
           return (
             <WouterLink key={item.href} href={item.href} className={cn(
               "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-              isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+              isActive
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
             )}>
               <item.icon className="h-4 w-4" />
               {item.label}

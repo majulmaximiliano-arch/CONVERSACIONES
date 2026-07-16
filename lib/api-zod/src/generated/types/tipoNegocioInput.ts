@@ -6,8 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ConceptMapping {
-  folderName: string;
-  columnName: string;
-  role: string;
+export interface TipoNegocioInput {
+  name: string;
 }

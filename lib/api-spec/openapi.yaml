@@ -12,6 +12,10 @@ tags:
     description: Health operations
   - name: users
     description: User management
+  - name: marcas
+    description: Brand management
+  - name: tiposNegocio
+    description: Business type management
   - name: folders
     description: Data folder management
   - name: files
@@ -130,7 +134,7 @@ paths:
         "204":
           description: Deleted
 
-  # ─── SESSION (user selection for MVP) ────────────────────────────────────────
+  # ─── SESSION ─────────────────────────────────────────────────────────────────
 
   /session:
     get:
@@ -169,6 +173,197 @@ paths:
         "204":
           description: Session cleared
 
+  # ─── MARCAS ──────────────────────────────────────────────────────────────────
+
+  /marcas:
+    get:
+      operationId: listMarcas
+      tags: [marcas]
+      summary: List all brands
+      parameters:
+        - name: activeOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of brands
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Marca"
+    post:
+      operationId: createMarca
+      tags: [marcas]
+      summary: Create a brand (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarcaInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Marca"
+
+  /marcas/{marcaId}:
+    get:
+      operationId: getMarca
+      tags: [marcas]
+      summary: Get a brand by ID
+      parameters:
+        - name: marcaId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Brand found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Marca"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateMarca
+      tags: [marcas]
+      summary: Update a brand (admin only)
+      parameters:
+        - name: marcaId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarcaUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Marca"
+    delete:
+      operationId: deleteMarca
+      tags: [marcas]
+      summary: Delete a brand (admin only)
+      parameters:
+        - name: marcaId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── TIPOS DE NEGOCIO ─────────────────────────────────────────────────────────
+
+  /marcas/{marcaId}/tipos-negocio:
+    get:
+      operationId: listTiposNegocio
+      tags: [tiposNegocio]
+      summary: List business types for a brand
+      parameters:
+        - name: marcaId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of business types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TipoNegocio"
+    post:
+      operationId: createTipoNegocio
+      tags: [tiposNegocio]
+      summary: Create a business type (admin only)
+      parameters:
+        - name: marcaId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TipoNegocioInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TipoNegocio"
+
+  /marcas/{marcaId}/tipos-negocio/{tipoNegocioId}:
+    patch:
+      operationId: updateTipoNegocio
+      tags: [tiposNegocio]
+      summary: Update a business type (admin only)
+      parameters:
+        - name: marcaId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: tipoNegocioId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TipoNegocioUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TipoNegocio"
+    delete:
+      operationId: deleteTipoNegocio
+      tags: [tiposNegocio]
+      summary: Delete a business type (admin only)
+      parameters:
+        - name: marcaId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: tipoNegocioId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
   # ─── FOLDERS ─────────────────────────────────────────────────────────────────
 
   /folders:
@@ -177,6 +372,11 @@ paths:
       tags: [folders]
       summary: List folders accessible to current user
       parameters:
+        - name: tipoNegocioId
+          in: query
+          required: false
+          schema:
+            type: integer
         - name: userId
           in: query
           required: false
@@ -650,7 +850,6 @@ components:
       required:
         - name
         - email
-        - role
 
     UserUpdate:
       type: object
@@ -666,14 +865,10 @@ components:
     SessionInfo:
       type: object
       properties:
-        userId:
-          type: ["integer", "null"]
         user:
-          oneOf:
-            - $ref: "#/components/schemas/User"
-            - type: "null"
+          $ref: "#/components/schemas/User"
       required:
-        - userId
+        - user
 
     SessionInput:
       type: object
@@ -683,6 +878,101 @@ components:
       required:
         - userId
 
+    # ── Marcas ──
+
+    Marca:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        logoUrl:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        tipoNegocioCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - slug
+        - isActive
+        - tipoNegocioCount
+        - createdAt
+
+    MarcaInput:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        logoUrl:
+          type: string
+        isActive:
+          type: boolean
+      required:
+        - name
+        - slug
+
+    MarcaUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        logoUrl:
+          type: string
+        isActive:
+          type: boolean
+
+    # ── Tipos de Negocio ──
+
+    TipoNegocio:
+      type: object
+      properties:
+        id:
+          type: integer
+        marcaId:
+          type: integer
+        marcaName:
+          type: string
+        name:
+          type: string
+        folderCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - marcaId
+        - marcaName
+        - name
+        - folderCount
+        - createdAt
+
+    TipoNegocioInput:
+      type: object
+      properties:
+        name:
+          type: string
+      required:
+        - name
+
+    TipoNegocioUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+
     # ── Folders ──
 
     Folder:
@@ -690,6 +980,14 @@ components:
       properties:
         id:
           type: integer
+        tipoNegocioId:
+          type: integer
+        tipoNegocioName:
+          type: string
+        marcaId:
+          type: integer
+        marcaName:
+          type: string
         name:
           type: string
         description:
@@ -697,11 +995,6 @@ components:
         color:
           type: ["string", "null"]
         icon:
-          type: ["string", "null"]
-        scope:
-          type: string
-          enum: [market, brand]
-        brand:
           type: ["string", "null"]
         fileCount:
           type: integer
@@ -710,8 +1003,11 @@ components:
           format: date-time
       required:
         - id
+        - tipoNegocioId
+        - tipoNegocioName
+        - marcaId
+        - marcaName
         - name
-        - scope
         - fileCount
         - createdAt
 
@@ -720,6 +1016,14 @@ components:
       properties:
         id:
           type: integer
+        tipoNegocioId:
+          type: integer
+        tipoNegocioName:
+          type: string
+        marcaId:
+          type: integer
+        marcaName:
+          type: string
         name:
           type: string
         description:
@@ -727,11 +1031,6 @@ components:
         color:
           type: ["string", "null"]
         icon:
-          type: ["string", "null"]
-        scope:
-          type: string
-          enum: [market, brand]
-        brand:
           type: ["string", "null"]
         files:
           type: array
@@ -746,8 +1045,11 @@ components:
           format: date-time
       required:
         - id
+        - tipoNegocioId
+        - tipoNegocioName
+        - marcaId
+        - marcaName
         - name
-        - scope
         - files
         - permissions
         - createdAt
@@ -755,6 +1057,8 @@ components:
     FolderInput:
       type: object
       properties:
+        tipoNegocioId:
+          type: integer
         name:
           type: string
         description:
@@ -763,12 +1067,8 @@ components:
           type: string
         icon:
           type: string
-        scope:
-          type: string
-          enum: [market, brand]
-        brand:
-          type: string
       required:
+        - tipoNegocioId
         - name
 
     FolderUpdate:
@@ -781,11 +1081,6 @@ components:
         color:
           type: string
         icon:
-          type: string
-        scope:
-          type: string
-          enum: [market, brand]
-        brand:
           type: string
 
     FolderPermission:
@@ -818,6 +1113,10 @@ components:
           type: integer
         folderName:
           type: string
+        tipoNegocioName:
+          type: ["string", "null"]
+        marcaName:
+          type: ["string", "null"]
         hasFileForMonth:
           type: boolean
         latestFileDate:
@@ -1047,7 +1346,16 @@ components:
         columnMappings:
           type: array
           items:
-            $ref: "#/components/schemas/ConceptMapping"
+            type: object
+            properties:
+              folderId:
+                type: ["integer", "null"]
+              folderName:
+                type: string
+              columnName:
+                type: string
+              role:
+                type: string
       required:
         - id
         - name
@@ -1055,21 +1363,7 @@ components:
         - category
         - columnMappings
 
-    ConceptMapping:
-      type: object
-      properties:
-        folderName:
-          type: string
-        columnName:
-          type: string
-        role:
-          type: string
-      required:
-        - folderName
-        - columnName
-        - role
-
-    # ── Conversations & Messages ──
+    # ── Conversations ──
 
     Conversation:
       type: object
@@ -1080,19 +1374,18 @@ components:
           type: integer
         title:
           type: string
-        messageCount:
-          type: integer
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
+        messageCount:
+          type: integer
       required:
         - id
         - userId
         - title
-        - messageCount
         - createdAt
         - updatedAt
 
@@ -1116,23 +1409,23 @@ components:
           type: integer
         title:
           type: string
-        messages:
-          type: array
-          items:
-            $ref: "#/components/schemas/Message"
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
       required:
         - id
         - userId
         - title
-        - messages
         - createdAt
         - updatedAt
+        - messages
 
     Message:
       type: object
@@ -1176,11 +1469,8 @@ components:
       properties:
         content:
           type: string
-        userId:
-          type: integer
       required:
         - content
-        - userId
 
     MessageResponse:
       type: object

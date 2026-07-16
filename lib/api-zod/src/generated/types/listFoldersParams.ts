@@ -7,5 +7,6 @@
  */
 
 export type ListFoldersParams = {
+tipoNegocioId?: number;
 userId?: number;
 };

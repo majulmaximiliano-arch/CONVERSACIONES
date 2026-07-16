@@ -10,7 +10,7 @@ export interface Conversation {
   id: number;
   userId: number;
   title: string;
-  messageCount: number;
   createdAt: Date;
   updatedAt: Date;
+  messageCount?: number;
 }

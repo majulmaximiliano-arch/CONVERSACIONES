@@ -5,13 +5,10 @@
  * CONVERSACIONES – Conversational Business Intelligence API
  * OpenAPI spec version: 0.1.0
  */
-import type { FolderUpdateScope } from './folderUpdateScope';
 
 export interface FolderUpdate {
   name?: string;
   description?: string;
   color?: string;
   icon?: string;
-  scope?: FolderUpdateScope;
-  brand?: string;
 }

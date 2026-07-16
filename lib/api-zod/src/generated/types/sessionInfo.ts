@@ -8,7 +8,5 @@
 import type { User } from './user';
 
 export interface SessionInfo {
-  /** @nullable */
-  userId: number | null;
-  user?: User | null;
+  user: User;
 }

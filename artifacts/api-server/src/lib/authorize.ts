@@ -1,25 +1,30 @@
-import { and, eq } from "drizzle-orm";
-import { db, folderPermissionsTable, dataFilesTable, conversationsTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
+import { db, dataFilesTable, conversationsTable, foldersTable } from "@workspace/db";
 import type { User } from "@workspace/db";
 
 /**
- * Returns true if the user can read from the given folder.
- * Admins always have access. Analysts need an explicit permission record.
+ * Returns true if the user can access the given folder.
+ * Admins always have access.
+ * Analysts need an explicit permission at folder, tipo_negocio, or marca level.
  */
 export async function canAccessFolder(user: User, folderId: number): Promise<boolean> {
   if (user.role === "admin") return true;
 
-  const [perm] = await db
-    .select()
-    .from(folderPermissionsTable)
-    .where(
-      and(
-        eq(folderPermissionsTable.folderId, folderId),
-        eq(folderPermissionsTable.userId, user.id),
-      ),
-    );
+  const result = await db.execute(sql`
+    SELECT 1
+    FROM folders f
+    LEFT JOIN tipos_negocio tn ON tn.id = f.tipo_negocio_id
+    LEFT JOIN marcas m ON m.id = tn.marca_id
+    WHERE f.id = ${folderId}
+      AND (
+        EXISTS (SELECT 1 FROM folder_permissions fp WHERE fp.folder_id = f.id AND fp.user_id = ${user.id})
+        OR EXISTS (SELECT 1 FROM user_tipo_negocio_permissions utp WHERE utp.tipo_negocio_id = f.tipo_negocio_id AND utp.user_id = ${user.id})
+        OR EXISTS (SELECT 1 FROM user_marca_permissions ump WHERE ump.marca_id = m.id AND ump.user_id = ${user.id})
+      )
+    LIMIT 1
+  `);
 
-  return !!perm;
+  return result.rows.length > 0;
 }
 
 /**

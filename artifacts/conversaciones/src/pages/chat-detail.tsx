@@ -41,7 +41,7 @@ export function ChatDetail() {
     if (!userId || !conversationId) return;
     
     sendMessage.mutate(
-      { conversationId, data: { content, userId } },
+      { conversationId, data: { content } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(conversationId) });
