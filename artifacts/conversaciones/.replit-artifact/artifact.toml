@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "CONVERSACIONES"
+version = "1.0.0"
+id = "artifacts/conversaciones"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24091
+
+[services.development]
+run = "pnpm --filter @workspace/conversaciones run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/conversaciones", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/conversaciones/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24091"
+BASE_PATH = "/"

@@ -3,20 +3,34 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: CONVERSACIONES – Conversational Business Intelligence API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: users
+    description: User management
+  - name: folders
+    description: Data folder management
+  - name: files
+    description: Excel file management
+  - name: conversations
+    description: Chat conversations
+  - name: messages
+    description: Chat messages
+  - name: knowledge
+    description: Knowledge catalog
+  - name: dashboard
+    description: Dashboard and overview
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +38,571 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── USERS ───────────────────────────────────────────────────────────────────
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{userId}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get a user by ID
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── SESSION (user selection for MVP) ────────────────────────────────────────
+
+  /session:
+    get:
+      operationId: getSession
+      tags: [users]
+      summary: Get current session user
+      responses:
+        "200":
+          description: Current session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionInfo"
+    post:
+      operationId: setSession
+      tags: [users]
+      summary: Set session user (MVP login)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionInput"
+      responses:
+        "200":
+          description: Session set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionInfo"
+    delete:
+      operationId: clearSession
+      tags: [users]
+      summary: Clear session (logout)
+      responses:
+        "204":
+          description: Session cleared
+
+  # ─── FOLDERS ─────────────────────────────────────────────────────────────────
+
+  /folders:
+    get:
+      operationId: listFolders
+      tags: [folders]
+      summary: List folders accessible to current user
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of folders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Folder"
+    post:
+      operationId: createFolder
+      tags: [folders]
+      summary: Create a new folder (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FolderInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Folder"
+
+  /folders/{folderId}:
+    get:
+      operationId: getFolder
+      tags: [folders]
+      summary: Get a folder with its files
+      parameters:
+        - name: folderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Folder detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FolderDetail"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateFolder
+      tags: [folders]
+      summary: Update a folder
+      parameters:
+        - name: folderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FolderUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Folder"
+    delete:
+      operationId: deleteFolder
+      tags: [folders]
+      summary: Delete a folder
+      parameters:
+        - name: folderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /folders/{folderId}/permissions:
+    get:
+      operationId: getFolderPermissions
+      tags: [folders]
+      summary: Get users with access to a folder
+      parameters:
+        - name: folderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of user IDs with access
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FolderPermission"
+    post:
+      operationId: grantFolderPermission
+      tags: [folders]
+      summary: Grant a user access to a folder
+      parameters:
+        - name: folderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FolderPermissionInput"
+      responses:
+        "201":
+          description: Permission granted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FolderPermission"
+
+  /folders/{folderId}/permissions/{userId}:
+    delete:
+      operationId: revokeFolderPermission
+      tags: [folders]
+      summary: Revoke a user's access to a folder
+      parameters:
+        - name: folderId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Permission revoked
+
+  # ─── FILES ───────────────────────────────────────────────────────────────────
+
+  /folders/{folderId}/files:
+    get:
+      operationId: listFolderFiles
+      tags: [files]
+      summary: List files in a folder
+      parameters:
+        - name: folderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DataFile"
+
+  /files/{fileId}:
+    get:
+      operationId: getFile
+      tags: [files]
+      summary: Get file detail with columns
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: File detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileDetail"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteFile
+      tags: [files]
+      summary: Delete a file
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /files/{fileId}/confirm:
+    post:
+      operationId: confirmFile
+      tags: [files]
+      summary: Confirm or correct the file analysis and mark as active
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FileConfirmation"
+      responses:
+        "200":
+          description: File confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileDetail"
+
+  # ─── DATA CENTER OVERVIEW ─────────────────────────────────────────────────────
+
+  /data-center/monthly-status:
+    get:
+      operationId: getMonthlyStatus
+      tags: [dashboard]
+      summary: Monthly completeness status per folder
+      parameters:
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Monthly status per folder
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FolderMonthlyStatus"
+
+  # ─── KNOWLEDGE CATALOG ────────────────────────────────────────────────────────
+
+  /knowledge-catalog:
+    get:
+      operationId: listKnowledgeConcepts
+      tags: [knowledge]
+      summary: List all knowledge concepts
+      responses:
+        "200":
+          description: List of concepts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KnowledgeConcept"
+
+  /knowledge-catalog/{conceptId}:
+    get:
+      operationId: getKnowledgeConcept
+      tags: [knowledge]
+      summary: Get a knowledge concept with its column mappings
+      parameters:
+        - name: conceptId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Concept with mappings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeConceptDetail"
+
+  # ─── CONVERSATIONS ────────────────────────────────────────────────────────────
+
+  /conversations:
+    get:
+      operationId: listConversations
+      tags: [conversations]
+      summary: List conversations for a user
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Conversation"
+    post:
+      operationId: createConversation
+      tags: [conversations]
+      summary: Start a new conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+
+  /conversations/{conversationId}:
+    get:
+      operationId: getConversation
+      tags: [conversations]
+      summary: Get a conversation with its messages
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationDetail"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteConversation
+      tags: [conversations]
+      summary: Delete a conversation
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /conversations/{conversationId}/messages:
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message and get AI response
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "200":
+          description: AI response with optional chart data and insights
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ─── DASHBOARD ────────────────────────────────────────────────────────────────
+
+  /dashboard/overview:
+    get:
+      operationId: getDashboardOverview
+      tags: [dashboard]
+      summary: Get dashboard overview stats
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Overview stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardOverview"
+
+# ─── SCHEMAS ──────────────────────────────────────────────────────────────────
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +613,602 @@ components:
       required:
         - status
 
+    # ── Users ──
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, analyst]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - email
+        - role
+        - createdAt
+
+    UserInput:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, analyst]
+      required:
+        - name
+        - email
+        - role
+
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, analyst]
+
+    SessionInfo:
+      type: object
+      properties:
+        userId:
+          type: ["integer", "null"]
+        user:
+          oneOf:
+            - $ref: "#/components/schemas/User"
+            - type: "null"
+      required:
+        - userId
+
+    SessionInput:
+      type: object
+      properties:
+        userId:
+          type: integer
+      required:
+        - userId
+
+    # ── Folders ──
+
+    Folder:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        color:
+          type: ["string", "null"]
+        icon:
+          type: ["string", "null"]
+        fileCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - fileCount
+        - createdAt
+
+    FolderDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        color:
+          type: ["string", "null"]
+        icon:
+          type: ["string", "null"]
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/DataFile"
+        permissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/FolderPermission"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - files
+        - permissions
+        - createdAt
+
+    FolderInput:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        color:
+          type: string
+        icon:
+          type: string
+      required:
+        - name
+
+    FolderUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        color:
+          type: string
+        icon:
+          type: string
+
+    FolderPermission:
+      type: object
+      properties:
+        folderId:
+          type: integer
+        userId:
+          type: integer
+        userName:
+          type: ["string", "null"]
+        userEmail:
+          type: ["string", "null"]
+      required:
+        - folderId
+        - userId
+
+    FolderPermissionInput:
+      type: object
+      properties:
+        userId:
+          type: integer
+      required:
+        - userId
+
+    FolderMonthlyStatus:
+      type: object
+      properties:
+        folderId:
+          type: integer
+        folderName:
+          type: string
+        hasFileForMonth:
+          type: boolean
+        latestFileDate:
+          type: ["string", "null"]
+        fileCount:
+          type: integer
+      required:
+        - folderId
+        - folderName
+        - hasFileForMonth
+        - fileCount
+
+    # ── Files ──
+
+    DataFile:
+      type: object
+      properties:
+        id:
+          type: integer
+        folderId:
+          type: integer
+        originalFilename:
+          type: string
+        description:
+          type: ["string", "null"]
+        brand:
+          type: ["string", "null"]
+        periodMonth:
+          type: ["integer", "null"]
+        periodYear:
+          type: ["integer", "null"]
+        status:
+          type: string
+          enum: [pending, confirmed]
+        uploadedBy:
+          type: integer
+        uploadedAt:
+          type: string
+          format: date-time
+        rowCount:
+          type: ["integer", "null"]
+        sheetCount:
+          type: ["integer", "null"]
+        columnCount:
+          type: ["integer", "null"]
+      required:
+        - id
+        - folderId
+        - originalFilename
+        - status
+        - uploadedBy
+        - uploadedAt
+
+    FileDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        folderId:
+          type: integer
+        originalFilename:
+          type: string
+        description:
+          type: ["string", "null"]
+        brand:
+          type: ["string", "null"]
+        periodMonth:
+          type: ["integer", "null"]
+        periodYear:
+          type: ["integer", "null"]
+        status:
+          type: string
+          enum: [pending, confirmed]
+        uploadedBy:
+          type: integer
+        uploadedAt:
+          type: string
+          format: date-time
+        rowCount:
+          type: ["integer", "null"]
+        sheetCount:
+          type: ["integer", "null"]
+        columnCount:
+          type: ["integer", "null"]
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/FileColumn"
+        previewRows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      required:
+        - id
+        - folderId
+        - originalFilename
+        - status
+        - uploadedBy
+        - uploadedAt
+        - columns
+
+    FileColumn:
+      type: object
+      properties:
+        id:
+          type: integer
+        fileId:
+          type: integer
+        name:
+          type: string
+        detectedType:
+          type: string
+          enum: [number, date, category, percentage, text]
+        isMetric:
+          type: boolean
+        isDimension:
+          type: boolean
+        sampleValues:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - fileId
+        - name
+        - detectedType
+        - isMetric
+        - isDimension
+
+    FileAnalysis:
+      type: object
+      properties:
+        file:
+          $ref: "#/components/schemas/DataFile"
+        sheets:
+          type: array
+          items:
+            type: string
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/FileColumn"
+        detectedPeriod:
+          type: ["string", "null"]
+        detectedBrand:
+          type: ["string", "null"]
+        metricCount:
+          type: integer
+        dimensionCount:
+          type: integer
+        rowCount:
+          type: integer
+        summary:
+          type: string
+      required:
+        - file
+        - sheets
+        - columns
+        - metricCount
+        - dimensionCount
+        - rowCount
+        - summary
+
+    FileConfirmation:
+      type: object
+      properties:
+        description:
+          type: string
+        brand:
+          type: string
+        periodMonth:
+          type: integer
+        periodYear:
+          type: integer
+        columns:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              detectedType:
+                type: string
+                enum: [number, date, category, percentage, text]
+              isMetric:
+                type: boolean
+              isDimension:
+                type: boolean
+            required:
+              - id
+
+    # ── Knowledge Catalog ──
+
+    KnowledgeConcept:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        formula:
+          type: ["string", "null"]
+      required:
+        - id
+        - name
+        - description
+        - category
+
+    KnowledgeConceptDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        formula:
+          type: ["string", "null"]
+        columnMappings:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConceptMapping"
+      required:
+        - id
+        - name
+        - description
+        - category
+        - columnMappings
+
+    ConceptMapping:
+      type: object
+      properties:
+        folderName:
+          type: string
+        columnName:
+          type: string
+        role:
+          type: string
+      required:
+        - folderName
+        - columnName
+        - role
+
+    # ── Conversations & Messages ──
+
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+        messageCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - title
+        - messageCount
+        - createdAt
+        - updatedAt
+
+    ConversationInput:
+      type: object
+      properties:
+        userId:
+          type: integer
+        title:
+          type: string
+      required:
+        - userId
+        - title
+
+    ConversationDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - title
+        - messages
+        - createdAt
+        - updatedAt
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        chartData:
+          type: ["object", "null"]
+          additionalProperties: true
+        kpis:
+          type: array
+          items:
+            $ref: "#/components/schemas/KpiItem"
+        insights:
+          type: array
+          items:
+            type: string
+        filesConsulted:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - conversationId
+        - role
+        - content
+        - createdAt
+
+    MessageInput:
+      type: object
+      properties:
+        content:
+          type: string
+        userId:
+          type: integer
+      required:
+        - content
+        - userId
+
+    MessageResponse:
+      type: object
+      properties:
+        userMessage:
+          $ref: "#/components/schemas/Message"
+        assistantMessage:
+          $ref: "#/components/schemas/Message"
+      required:
+        - userMessage
+        - assistantMessage
+
+    KpiItem:
+      type: object
+      properties:
+        label:
+          type: string
+        value:
+          type: string
+        change:
+          type: ["string", "null"]
+        trend:
+          type: ["string", "null"]
+          enum: [up, down, neutral, null]
+      required:
+        - label
+        - value
+
+    # ── Dashboard ──
+
+    DashboardOverview:
+      type: object
+      properties:
+        totalFolders:
+          type: integer
+        totalFiles:
+          type: integer
+        totalConversations:
+          type: integer
+        recentConversations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Conversation"
+        monthlyStatus:
+          type: array
+          items:
+            $ref: "#/components/schemas/FolderMonthlyStatus"
+      required:
+        - totalFolders
+        - totalFiles
+        - totalConversations
+        - recentConversations
+        - monthlyStatus

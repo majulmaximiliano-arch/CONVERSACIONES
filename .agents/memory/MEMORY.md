@@ -1,0 +1,1 @@
+- [CONVERSACIONES architecture](conversaciones-arch.md) — auth, file upload, Excel parsing, DB schema, AI, codegen, seed data decisions for the BI chat MVP
