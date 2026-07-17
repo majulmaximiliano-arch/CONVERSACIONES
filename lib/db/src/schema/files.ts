@@ -22,6 +22,8 @@ export const dataFilesTable = pgTable("data_files", {
   sheetCount: integer("sheet_count"),
   columnCount: integer("column_count"),
   uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+  tableName: text("table_name"),
+  columnSchema: jsonb("column_schema").$type<Array<{ originalName: string; sanitizedName: string; detectedType: string }>>(),
 });
 
 export const fileColumnsTable = pgTable("file_columns", {

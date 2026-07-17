@@ -16,6 +16,186 @@ import { canAccessConversation } from "../lib/authorize";
 
 const router: IRouter = Router();
 
+const MONTH_NAMES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface ColumnSchema {
+  originalName: string;
+  sanitizedName: string;
+  detectedType: string;
+}
+
+// ── SQL tool security ─────────────────────────────────────────────────────────
+
+function validateSelectSql(query: string, allowedTables: Set<string>): { ok: boolean; error?: string } {
+  const trimmed = query.trim();
+  const lower = trimmed.toLowerCase();
+
+  if (!lower.startsWith("select") && !lower.startsWith("with")) {
+    return { ok: false, error: "Solo se permiten queries SELECT o WITH" };
+  }
+
+  const dangerous = ["insert", "update", "delete", "drop", "create", "alter", "truncate", "grant", "revoke"];
+  for (const kw of dangerous) {
+    if (new RegExp(`\\b${kw}\\b`).test(lower)) {
+      return { ok: false, error: `Keyword no permitido: ${kw.toUpperCase()}` };
+    }
+  }
+
+  // Only allow file_data_N tables (from accessible files)
+  const tablePattern = /(?:from|join)\s+"?([a-z_][a-z0-9_]*)"?/gi;
+  let match;
+  while ((match = tablePattern.exec(lower)) !== null) {
+    const t = match[1].toLowerCase();
+    if (!t.startsWith("file_data_")) {
+      return { ok: false, error: `Tabla no permitida: ${t}. Solo se puede consultar tablas file_data_*.` };
+    }
+    if (!allowedTables.has(t)) {
+      return { ok: false, error: `Tabla no accesible: ${t}` };
+    }
+  }
+
+  return { ok: true };
+}
+
+async function executeSqlTool(
+  query: string,
+  allowedTables: Set<string>,
+): Promise<{ rows: unknown[]; rowCount: number; error?: string }> {
+  const validation = validateSelectSql(query, allowedTables);
+  if (!validation.ok) {
+    return { rows: [], rowCount: 0, error: validation.error };
+  }
+  try {
+    const result = await db.execute(sql.raw(query));
+    const rows = (result.rows as unknown[]).slice(0, 2000);
+    return { rows, rowCount: result.rows.length };
+  } catch (err: any) {
+    return { rows: [], rowCount: 0, error: `Error SQL: ${err.message}` };
+  }
+}
+
+// ── Context builders ──────────────────────────────────────────────────────────
+
+function buildTableContext(
+  filesWithSchema: Array<{ file: typeof dataFilesTable.$inferSelect; columnSchema: ColumnSchema[] }>,
+): string {
+  return filesWithSchema
+    .map(({ file, columnSchema }) => {
+      const period =
+        file.periodMonth && file.periodYear
+          ? `${MONTH_NAMES[file.periodMonth - 1]} ${file.periodYear}`
+          : "período desconocido";
+      const cols = columnSchema
+        .map((c) => `    "${c.sanitizedName}" (tipo: ${c.detectedType}, columna original: "${c.originalName}")`)
+        .join("\n");
+      return `📊 Tabla: ${file.tableName}\n   Archivo: ${file.originalFilename} | Período: ${period}\n   Columnas:\n${cols}`;
+    })
+    .join("\n\n");
+}
+
+function buildSystemPrompt(
+  folderNames: string[],
+  tableContext: string,
+  legacyContext: string,
+): string {
+  const hasTables = tableContext.length > 0;
+  const hasLegacy = legacyContext.length > 0;
+
+  const dataSection = hasTables
+    ? `\n\nTENÉS ACCESO A LAS SIGUIENTES TABLAS DE DATOS (usá execute_sql para consultarlas):\n\n${tableContext}`
+    : `\n\nCarpetas de datos disponibles: ${folderNames.join(", ") || "ninguna"}.`;
+
+  const legacySection = hasLegacy
+    ? `\n\n## Datos adicionales (archivos legacy — muestra):\n${legacyContext}`
+    : "";
+
+  const sqlRules = hasTables
+    ? `
+REGLAS DE SQL:
+- Usá execute_sql para CUALQUIER pregunta sobre datos numéricos. No calcules de memoria.
+- Todos los valores están almacenados como TEXT. Para operaciones matemáticas convertí con ::numeric
+  Ejemplo: SELECT SUM(unidades::numeric) FROM file_data_5
+- Para porcentajes como "15.3%" usá: REPLACE(columna, '%', '')::numeric
+- Podés hacer múltiples llamadas a execute_sql para cruzar información o verificar datos.
+- Si una query falla, analizá el error e intentá corregirla.`
+    : "";
+
+  return `Sos un analista de inteligencia de negocios especializado en concesionarias automotrices.
+Respondés preguntas sobre datos de ventas, postventa, finanzas y operaciones.${dataSection}${legacySection}
+${sqlRules}
+REGLAS GENERALES:
+1. Siempre explicá el razonamiento detrás de los números. No solo mostrés datos, interpretálos.
+2. Detectá anomalías, tendencias y oportunidades automáticamente.
+3. Respondé SIEMPRE en español argentino.
+4. Si no tenés suficientes datos para responder con certeza, decilo claramente.
+5. Cuando calculés indicadores cruzados (Share, Rentabilidad, etc.), explicá el cálculo.
+
+FORMATO DE RESPUESTA FINAL:
+Cuando tengas datos suficientes para una visualización, respondé con JSON estructurado:
+
+\`\`\`json
+{
+  "answer": "Tu explicación completa aquí en texto natural",
+  "chart": {
+    "type": "bar|line|area|pie|table",
+    "title": "Título del gráfico",
+    "data": [...],
+    "xKey": "campo para eje X",
+    "yKeys": ["campo1", "campo2"],
+    "columns": [{"key": "campo", "label": "Etiqueta"}]
+  },
+  "kpis": [
+    {"label": "Nombre KPI", "value": "1.234", "change": "+5%", "trend": "up|down|neutral"}
+  ],
+  "insights": [
+    "Insight 1: descripción concisa",
+    "Insight 2: descripción concisa"
+  ]
+}
+\`\`\`
+
+Si no hay datos suficientes para un gráfico, respondé solo con texto explicativo (sin JSON).`;
+}
+
+// ── Tool definition ───────────────────────────────────────────────────────────
+
+const SQL_TOOL = {
+  name: "execute_sql",
+  description:
+    "Ejecuta una query SQL SELECT sobre las tablas de datos de archivos cargados. " +
+    "Usá esta herramienta para responder preguntas numéricas, agregaciones, comparaciones y análisis. " +
+    "Los valores de columnas están almacenados como TEXT — convertí a ::numeric para aritmética.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      query: {
+        type: "string",
+        description: "Query SQL SELECT válida. Solo SELECT statements. No DDL ni DML.",
+      },
+    },
+    required: ["query"],
+  },
+};
+
+// ── parseAIResponse ───────────────────────────────────────────────────────────
+
+function parseAIResponse(text: string) {
+  try {
+    const jsonMatch = text.match(/```json\s*([\s\S]*?)```/);
+    if (jsonMatch) return JSON.parse(jsonMatch[1]);
+    return { answer: text };
+  } catch {
+    return { answer: text };
+  }
+}
+
+// ── Route ─────────────────────────────────────────────────────────────────────
+
 router.post("/conversations/:conversationId/messages", requireSession, async (req, res): Promise<void> => {
   const params = SendMessageParams.safeParse(req.params);
   if (!params.success) {
@@ -47,7 +227,7 @@ router.post("/conversations/:conversationId/messages", requireSession, async (re
     })
     .returning();
 
-  // Get conversation history (last 10 messages)
+  // Conversation history (last 10 exchanges)
   const history = await db
     .select()
     .from(messagesTable)
@@ -57,7 +237,7 @@ router.post("/conversations/:conversationId/messages", requireSession, async (re
 
   const historyMessages = history.reverse().filter((m) => m.id !== userMessage.id);
 
-  // Get folders accessible via hierarchical permissions (folder | tipo_negocio | marca)
+  // Accessible folders
   let accessibleFolderIds: number[] = [];
   let folderNames: string[] = [];
 
@@ -80,38 +260,121 @@ router.post("/conversations/:conversationId/messages", requireSession, async (re
     folderNames = (result.rows as any[]).map((r) => r.name as string);
   }
 
-  const dataContext = await buildDataContext(parsed.data.content, accessibleFolderIds, folderNames);
+  // Fetch recent confirmed files (last 10)
+  let files: (typeof dataFilesTable.$inferSelect)[] = [];
+  if (accessibleFolderIds.length > 0) {
+    const idList = sql.join(accessibleFolderIds.map((id) => sql`${id}`), sql`, `);
+    files = await db
+      .select()
+      .from(dataFilesTable)
+      .where(sql`${dataFilesTable.folderId} = ANY(ARRAY[${idList}]::int[]) AND ${dataFilesTable.status} = 'confirmed'`)
+      .orderBy(desc(dataFilesTable.uploadedAt))
+      .limit(10);
+  }
 
-  const systemPrompt = buildSystemPrompt(folderNames);
-  const contextualQuestion = buildContextualQuestion(parsed.data.content, dataContext);
+  // Separate: files with dynamic tables (new) vs legacy (data_rows only)
+  const filesWithTables = files
+    .filter((f) => f.tableName && f.columnSchema)
+    .map((f) => ({
+      file: f,
+      columnSchema: f.columnSchema as ColumnSchema[],
+    }));
 
+  const filesLegacy = files.filter((f) => !f.tableName);
+
+  // Build legacy context (CSV sample from data_rows)
+  const legacySections: string[] = [];
+  for (const file of filesLegacy) {
+    const columns = await db.select().from(fileColumnsTable).where(eq(fileColumnsTable.fileId, file.id));
+    const rows = await db.select().from(dataRowsTable).where(eq(dataRowsTable.fileId, file.id)).limit(20);
+    if (rows.length === 0) continue;
+    const colNames = columns.map((c) => c.name).join(", ");
+    const sample = rows.map((r) => JSON.stringify(r.rowData)).join("\n");
+    legacySections.push(`### ${file.originalFilename}\nColumnas: ${colNames}\nMuestra:\n${sample}`);
+  }
+  const legacyContext = legacySections.join("\n\n");
+
+  const tableContext = buildTableContext(filesWithTables);
+  const hasTables = filesWithTables.length > 0;
+  const systemPrompt = buildSystemPrompt(folderNames, tableContext, legacyContext);
+
+  // Allowed tables for SQL security
+  const allowedTables = new Set(filesWithTables.map((f) => f.file.tableName!.toLowerCase()));
+
+  // Track which files were consulted
+  const filesConsulted: string[] = files.map((f) => f.originalFilename);
+
+  // Build initial messages
+  type MsgParam = { role: "user" | "assistant"; content: any };
+  const messages: MsgParam[] = [
+    ...historyMessages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    { role: "user", content: parsed.data.content },
+  ];
+
+  // ── Agentic tool-use loop ──────────────────────────────────────────────────
   let aiResponseText = "";
   let chartData: Record<string, unknown> | null = null;
   let kpis: Array<{ label: string; value: string; change?: string; trend?: string }> = [];
   let insights: string[] = [];
-  const filesConsulted: string[] = dataContext.filesConsulted;
+
+  const MAX_LOOPS = 6;
+  let loopCount = 0;
 
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 2000,
-      system: systemPrompt,
-      messages: [
-        ...historyMessages.map((m) => ({
-          role: m.role as "user" | "assistant",
-          content: m.content,
-        })),
-        { role: "user", content: contextualQuestion },
-      ],
-    });
+    while (loopCount < MAX_LOOPS) {
+      loopCount++;
 
-    const rawText = response.content[0]?.type === "text" ? response.content[0].text : "";
-    const parsed2 = parseAIResponse(rawText);
-    aiResponseText = parsed2.answer || rawText;
-    chartData = parsed2.chart || null;
-    kpis = parsed2.kpis || [];
-    insights = parsed2.insights || [];
+      const createParams: any = {
+        model: "claude-sonnet-4-6",
+        max_tokens: 8192,
+        system: systemPrompt,
+        messages,
+      };
+
+      if (hasTables) {
+        createParams.tools = [SQL_TOOL];
+      }
+
+      const response = await anthropic.messages.create(createParams);
+
+      if (response.stop_reason === "tool_use") {
+        // Append assistant turn with tool calls
+        messages.push({ role: "assistant", content: response.content });
+
+        // Process each tool call
+        const toolResults: any[] = [];
+        for (const block of response.content) {
+          if (block.type === "tool_use" && block.name === "execute_sql") {
+            const query = (block.input as { query: string }).query;
+            const result = await executeSqlTool(query, allowedTables);
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: block.id,
+              content: JSON.stringify(result),
+            });
+          }
+        }
+
+        // Append tool results as user turn
+        messages.push({ role: "user", content: toolResults });
+      } else {
+        // end_turn — extract final text response
+        const textBlock = response.content.find((b) => b.type === "text");
+        const rawText = textBlock?.type === "text" ? textBlock.text : "";
+        const parsed2 = parseAIResponse(rawText);
+        aiResponseText = parsed2.answer || rawText;
+        chartData = parsed2.chart || null;
+        kpis = parsed2.kpis || [];
+        insights = parsed2.insights || [];
+        break;
+      }
+    }
+
+    if (!aiResponseText) {
+      aiResponseText = "Se alcanzó el límite de iteraciones. Por favor reformulá la pregunta.";
+    }
   } catch (err) {
+    console.error("[messages] AI error:", err);
     aiResponseText = "Lo siento, hubo un error al procesar tu consulta. Por favor intentá de nuevo.";
   }
 
@@ -128,7 +391,7 @@ router.post("/conversations/:conversationId/messages", requireSession, async (re
     })
     .returning();
 
-  // Update conversation title if first exchange
+  // Update conversation title/timestamp
   if (historyMessages.length === 0) {
     const title = parsed.data.content.slice(0, 60) + (parsed.data.content.length > 60 ? "..." : "");
     await db
@@ -144,115 +407,5 @@ router.post("/conversations/:conversationId/messages", requireSession, async (re
 
   res.json({ userMessage, assistantMessage });
 });
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-async function buildDataContext(question: string, folderIds: number[], folderNames: string[]) {
-  const filesConsulted: string[] = [];
-
-  if (folderIds.length === 0) {
-    return { data: "", filesConsulted };
-  }
-
-  const idList = sql.join(folderIds.map((id) => sql`${id}`), sql`, `);
-  const files = await db
-    .select()
-    .from(dataFilesTable)
-    .where(sql`${dataFilesTable.folderId} = ANY(ARRAY[${idList}]::int[]) AND ${dataFilesTable.status} = 'confirmed'`)
-    .orderBy(desc(dataFilesTable.uploadedAt))
-    .limit(5);
-
-  if (files.length === 0) {
-    return { data: "", filesConsulted };
-  }
-
-  const sections: string[] = [];
-  const keywords = question.toLowerCase();
-
-  for (const file of files) {
-    const columns = await db.select().from(fileColumnsTable).where(eq(fileColumnsTable.fileId, file.id));
-    const rows = await db
-      .select()
-      .from(dataRowsTable)
-      .where(eq(dataRowsTable.fileId, file.id))
-      .limit(50);
-
-    if (rows.length === 0) continue;
-
-    filesConsulted.push(file.originalFilename);
-    const colNames = columns.map((c) => c.name).join(", ");
-    const sampleData = rows
-      .slice(0, 20)
-      .map((r) => JSON.stringify(r.rowData))
-      .join("\n");
-
-    sections.push(
-      `### Archivo: ${file.originalFilename}\nColumnas: ${colNames}\nDatos (muestra):\n${sampleData}`,
-    );
-  }
-
-  return { data: sections.join("\n\n"), filesConsulted };
-}
-
-function parseAIResponse(text: string) {
-  try {
-    const jsonMatch = text.match(/```json\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[1]);
-    }
-    return { answer: text };
-  } catch {
-    return { answer: text };
-  }
-}
-
-function buildSystemPrompt(folderNames: string[]): string {
-  return `Sos un analista de inteligencia de negocios especializado en concesionarias automotrices.
-Respondés preguntas sobre datos de ventas, postventa, finanzas y operaciones.
-
-Carpetas de datos disponibles para este usuario: ${folderNames.join(", ") || "ninguna"}.
-
-REGLAS:
-1. Siempre explicá el razonamiento detrás de los números. No solo mostrés datos, interpretálos.
-2. Detectá anomalías, tendencias y oportunidades automáticamente.
-3. Cuando la pregunta lo permita, generá una visualización estructurada.
-4. Respondé SIEMPRE en español argentino.
-5. Si no tenés suficientes datos para responder con certeza, decilo claramente y sugerí qué archivos cargar.
-6. Cuando calculés indicadores cruzados (Share, Rentabilidad, etc.), explicá el cálculo.
-
-FORMATO DE RESPUESTA:
-Cuando tengas datos suficientes para una visualización, respondé con JSON estructurado:
-
-\`\`\`json
-{
-  "answer": "Tu explicación completa aquí en texto natural",
-  "chart": {
-    "type": "bar|line|area|pie|table",
-    "title": "Título del gráfico",
-    "data": [...],
-    "xKey": "campo para eje X",
-    "yKeys": ["campo1", "campo2"],
-    "columns": [{"key": "campo", "label": "Etiqueta"}]
-  },
-  "kpis": [
-    {"label": "Nombre KPI", "value": "1.234", "change": "+5%", "trend": "up|down|neutral"}
-  ],
-  "insights": [
-    "Insight 1: descripción concisa",
-    "Insight 2: descripción concisa"
-  ]
-}
-\`\`\`
-
-Si no hay datos suficientes para un gráfico, respondé solo con texto explicativo (sin JSON).`;
-}
-
-function buildContextualQuestion(question: string, dataContext: { data: string }): string {
-  const contextSection = dataContext.data
-    ? `\n\n## Datos disponibles:\n${dataContext.data}`
-    : "\n\n(No hay datos disponibles aún)";
-
-  return `Pregunta del usuario: ${question}${contextSection}`;
-}
 
 export default router;

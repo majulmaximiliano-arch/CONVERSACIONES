@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import multer from "multer";
 import { eq, and } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db, dataFilesTable, fileColumnsTable, dataRowsTable, foldersTable } from "@workspace/db";
 import {
   GetFileParams,
@@ -18,6 +19,63 @@ import { parseExcelFile } from "../lib/excel-parser";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Sanitize an Excel column name to a valid PostgreSQL identifier */
+function sanitizeColName(name: string): string {
+  const s = name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // strip accent marks (é→e, ñ→n, etc.)
+    .replace(/[^a-z0-9]/g, "_")      // non-alphanumeric → underscore
+    .replace(/^(\d)/, "_$1")         // leading digit gets prefixed
+    .replace(/_+/g, "_")             // collapse repeated underscores
+    .replace(/^_+|_+$/g, "")         // trim leading/trailing underscores
+    .slice(0, 63);                   // PostgreSQL max identifier length
+  return s || "col";
+}
+
+interface ColumnSchema {
+  originalName: string;
+  sanitizedName: string;
+  detectedType: string;
+}
+
+/** Build sanitized column schema, deduplicating collisions */
+function buildColumnSchema(columns: { name: string; detectedType: string }[]): ColumnSchema[] {
+  const seen = new Map<string, number>();
+  return columns.map((col) => {
+    let sanitized = sanitizeColName(col.name);
+    const count = seen.get(sanitized) ?? 0;
+    seen.set(sanitized, count + 1);
+    if (count > 0) sanitized = `${sanitized}_${count}`;
+    return { originalName: col.name, sanitizedName: sanitized, detectedType: col.detectedType };
+  });
+}
+
+/** Create a dynamic PostgreSQL table for a file and bulk-insert all its rows */
+async function createFileTable(tableName: string, columnSchema: ColumnSchema[], rows: Record<string, unknown>[]): Promise<void> {
+  const colDefs = columnSchema.map((c) => `"${c.sanitizedName}" text`).join(", ");
+  await db.execute(sql.raw(`CREATE TABLE IF NOT EXISTS ${tableName} (_row_id serial PRIMARY KEY, ${colDefs})`));
+
+  if (rows.length === 0) return;
+
+  const colList = sql.raw(columnSchema.map((c) => `"${c.sanitizedName}"`).join(", "));
+  const BATCH = 200;
+
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const batch = rows.slice(i, i + BATCH);
+    const rowClauses = batch.map((row) => {
+      const vals = columnSchema.map((c) => {
+        const v = row[c.originalName];
+        return v === null || v === undefined ? sql`NULL` : sql`${String(v)}`;
+      });
+      return sql`(${sql.join(vals, sql`, `)})`;
+    });
+    await db.execute(sql`INSERT INTO ${sql.raw(tableName)} (${colList}) VALUES ${sql.join(rowClauses, sql`, `)}`);
+  }
+}
 
 // ── List files in a folder ────────────────────────────────────────────────────
 
@@ -42,7 +100,7 @@ router.get("/folders/:folderId/files", requireSession, async (req, res): Promise
   res.json(ListFolderFilesResponse.parse(files));
 });
 
-// ── Upload file — users with folder access can upload ─────────────────────────
+// ── Upload file ───────────────────────────────────────────────────────────────
 
 router.post("/folders/:folderId/upload", requireSession, upload.single("file"), async (req, res): Promise<void> => {
   const rawFolderId = Array.isArray(req.params.folderId) ? req.params.folderId[0] : req.params.folderId;
@@ -91,7 +149,7 @@ router.post("/folders/:folderId/upload", requireSession, upload.single("file"), 
       periodMonth: period.month,
       periodYear: period.year,
       status: "pending",
-      uploadedBy: req.sessionUser!.id,   // always from session, never from body
+      uploadedBy: req.sessionUser!.id,
       rowCount: parsed.totalRows,
       sheetCount: parsed.sheets.length,
       columnCount: firstSheet?.columns.length ?? 0,
@@ -99,6 +157,7 @@ router.post("/folders/:folderId/upload", requireSession, upload.single("file"), 
     .returning();
 
   if (firstSheet) {
+    // Insert column metadata
     const columnInserts = firstSheet.columns.map((col) => ({
       fileId: dataFile.id,
       name: col.name,
@@ -107,15 +166,32 @@ router.post("/folders/:folderId/upload", requireSession, upload.single("file"), 
       isDimension: col.isDimension ? 1 : 0,
       sampleValues: col.sampleValues,
     }));
-
     const insertedColumns = await db.insert(fileColumnsTable).values(columnInserts).returning();
 
+    // Build column schema for dynamic table
+    const columnSchema = buildColumnSchema(firstSheet.columns);
+    const tableName = `file_data_${dataFile.id}`;
+
+    // Create dynamic PostgreSQL table and insert ALL rows (no limit)
+    try {
+      await createFileTable(tableName, columnSchema, firstSheet.rows);
+
+      // Update file record with table metadata
+      await db
+        .update(dataFilesTable)
+        .set({ tableName, columnSchema })
+        .where(eq(dataFilesTable.id, dataFile.id));
+    } catch (tableErr) {
+      // Table creation failure is non-fatal — log and continue without it
+      console.error(`[upload] Failed to create dynamic table for file ${dataFile.id}:`, tableErr);
+    }
+
+    // Also store first 1000 rows in data_rows for preview/fallback
     const rowsToInsert = firstSheet.rows.slice(0, 1000).map((row) => ({
       fileId: dataFile.id,
       sheetName: firstSheet.name,
       rowData: row as Record<string, unknown>,
     }));
-
     if (rowsToInsert.length > 0) {
       await db.insert(dataRowsTable).values(rowsToInsert);
     }
@@ -219,7 +295,6 @@ router.post("/files/:fileId/confirm", requireSession, async (req, res): Promise<
     .returning();
 
   if (parsed.data.columns && parsed.data.columns.length > 0) {
-    // Fetch all column IDs that legitimately belong to this file
     const ownedColumns = await db
       .select({ id: fileColumnsTable.id })
       .from(fileColumnsTable)
@@ -227,7 +302,6 @@ router.post("/files/:fileId/confirm", requireSession, async (req, res): Promise<
     const ownedIds = new Set(ownedColumns.map((c) => c.id));
 
     for (const col of parsed.data.columns) {
-      // Reject any column ID that doesn't belong to this file (prevents IDOR)
       if (!ownedIds.has(col.id)) {
         res.status(403).json({ error: `La columna ${col.id} no pertenece a este archivo` });
         return;
@@ -261,7 +335,7 @@ router.post("/files/:fileId/confirm", requireSession, async (req, res): Promise<
   );
 });
 
-// ── Delete file — admin or user with folder access ────────────────────────────
+// ── Delete file ───────────────────────────────────────────────────────────────
 
 router.delete("/files/:fileId", requireSession, async (req, res): Promise<void> => {
   const params = DeleteFileParams.safeParse(req.params);
@@ -276,11 +350,20 @@ router.delete("/files/:fileId", requireSession, async (req, res): Promise<void> 
     return;
   }
 
+  // Drop the dynamic table if it exists
+  if (file.tableName) {
+    try {
+      await db.execute(sql.raw(`DROP TABLE IF EXISTS ${file.tableName}`));
+    } catch {
+      // non-fatal
+    }
+  }
+
   await db.delete(dataFilesTable).where(eq(dataFilesTable.id, params.data.fileId));
   res.sendStatus(204);
 });
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Period extraction ─────────────────────────────────────────────────────────
 
 function extractPeriod(label: string | null): { month: number | null; year: number | null } {
   if (!label) return { month: null, year: null };
