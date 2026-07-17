@@ -121,8 +121,43 @@ REGLAS DE SQL:
 - Todos los valores están almacenados como TEXT. Para operaciones matemáticas convertí con ::numeric
   Ejemplo: SELECT SUM(unidades::numeric) FROM file_data_5
 - Para porcentajes como "15.3%" usá: REPLACE(columna, '%', '')::numeric
-- Podés hacer múltiples llamadas a execute_sql para cruzar información o verificar datos.
-- Si una query falla, analizá el error e intentá corregirla.`
+- Si una query falla, analizá el error e intentá corregirla.
+
+ESTRATEGIA CLAVE — MINIMIZÁ LA CANTIDAD DE QUERIES:
+Siempre intentá resolver con la menor cantidad de llamadas posible usando JOINs, CTEs y agregaciones.
+Nunca hagas queries separadas para datos que podés obtener en una sola.
+
+Ejemplos de queries eficientes:
+
+1. Share de una marca contra el mercado (en una sola query con dos tablas):
+SELECT
+  SUM(vw.unidades::numeric) AS unidades_marca,
+  SUM(mkt.total::numeric)   AS total_mercado,
+  ROUND(100.0 * SUM(vw.unidades::numeric) / NULLIF(SUM(mkt.total::numeric), 0), 2) AS share_pct
+FROM file_data_5 vw
+CROSS JOIN (SELECT SUM(unidades::numeric) AS total FROM file_data_8) mkt
+
+2. Comparar dos períodos distintos en una sola query (CTE):
+WITH jun AS (SELECT SUM(unidades::numeric) AS total FROM file_data_8 WHERE periodo = 'Junio 2026'),
+     ene AS (SELECT SUM(unidades::numeric) AS total FROM file_data_9 WHERE periodo = 'Enero 2026')
+SELECT jun.total AS junio, ene.total AS enero,
+       ROUND(100.0 * (jun.total - ene.total) / NULLIF(ene.total, 0), 2) AS variacion_pct
+FROM jun, ene
+
+3. Evolución mes a mes con UNION (cuando los datos de cada mes están en tablas separadas):
+SELECT 'Enero 2026' AS periodo, SUM(unidades::numeric) AS total FROM file_data_9
+UNION ALL
+SELECT 'Junio 2026', SUM(unidades::numeric) FROM file_data_8
+ORDER BY periodo
+
+4. JOIN entre marca y mercado para calcular share por modelo:
+SELECT v.modelo, SUM(v.unidades::numeric) AS unidades_vw,
+       m.total_mercado,
+       ROUND(100.0 * SUM(v.unidades::numeric) / NULLIF(m.total_mercado, 0), 2) AS share
+FROM file_data_5 v
+JOIN (SELECT SUM(unidades::numeric) AS total_mercado FROM file_data_8) m ON TRUE
+GROUP BY v.modelo, m.total_mercado
+ORDER BY unidades_vw DESC`
     : "";
 
   return `Sos un analista de inteligencia de negocios especializado en concesionarias automotrices.
@@ -317,7 +352,7 @@ router.post("/conversations/:conversationId/messages", requireSession, async (re
   let kpis: Array<{ label: string; value: string; change?: string; trend?: string }> = [];
   let insights: string[] = [];
 
-  const MAX_LOOPS = 6;
+  const MAX_LOOPS = 20;
   let loopCount = 0;
 
   try {
@@ -371,7 +406,20 @@ router.post("/conversations/:conversationId/messages", requireSession, async (re
     }
 
     if (!aiResponseText) {
-      aiResponseText = "Se alcanzó el límite de iteraciones. Por favor reformulá la pregunta.";
+      // Extract any partial text Claude may have written in intermediate steps
+      const lastAssistantMsg = [...messages].reverse().find((m) => m.role === "assistant");
+      if (lastAssistantMsg && Array.isArray(lastAssistantMsg.content)) {
+        const textBlock = lastAssistantMsg.content.find((b: any) => b.type === "text");
+        if (textBlock?.text) {
+          aiResponseText =
+            textBlock.text +
+            "\n\n*(Nota: el análisis se cortó antes de completarse. Si necesitás más detalle, preguntá sobre un aspecto específico.)*";
+        }
+      }
+      if (!aiResponseText) {
+        aiResponseText =
+          "No pude completar el análisis en este intento. Intentá hacer la pregunta de forma más específica, por ejemplo separando en dos preguntas distintas.";
+      }
     }
   } catch (err) {
     console.error("[messages] AI error:", err);
