@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useGetSession, useClearSession } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetSessionQueryKey } from "@workspace/api-client-react";
-import { Database, Settings, LogOut, MessageSquare, History, Users, FolderOpen, Building2 } from "lucide-react";
+import { Database, Settings, LogOut, MessageSquare, History, Users, FolderOpen, Building2, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Sidebar() {
@@ -30,6 +30,7 @@ export function Sidebar() {
     { icon: MessageSquare, label: "Conversaciones", href: "/chat", match: "/chat" },
     { icon: Database, label: "Centro de Datos", href: "/data-center", match: "/data-center" },
     { icon: History, label: "Historial", href: "/history", match: "/history" },
+    { icon: ClipboardList, label: "Checklist Mensual", href: "/checklist", match: "/checklist" },
   ];
 
   if (isAdmin) {

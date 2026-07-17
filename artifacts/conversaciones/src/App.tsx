@@ -18,6 +18,7 @@ import { FileDetail } from './pages/file-detail';
 import { FolderDetail } from './pages/folder-detail';
 import { SettingsPage } from './pages/settings';
 import { History } from './pages/history';
+import { ChecklistMensual } from './pages/checklist-mensual';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -76,6 +77,10 @@ function Router() {
 
       <Route path="/history">
         <RequireAuth><History /></RequireAuth>
+      </Route>
+
+      <Route path="/checklist">
+        <RequireAuth><ChecklistMensual /></RequireAuth>
       </Route>
 
       {/* Admin */}

@@ -105,7 +105,7 @@ export const GetSessionResponse = zod.object({
   "email": zod.string(),
   "role": zod.enum(['admin', 'analyst']),
   "createdAt": zod.coerce.date()
-})
+}).nullable()
 })
 
 
