@@ -295,7 +295,7 @@ router.post("/conversations/:conversationId/messages", requireSession, async (re
     folderNames = (result.rows as any[]).map((r) => r.name as string);
   }
 
-  // Fetch recent confirmed files (last 10)
+  // Fetch all confirmed files the user can access, ordered by period (most recent first)
   let files: (typeof dataFilesTable.$inferSelect)[] = [];
   if (accessibleFolderIds.length > 0) {
     const idList = sql.join(accessibleFolderIds.map((id) => sql`${id}`), sql`, `);
@@ -303,8 +303,11 @@ router.post("/conversations/:conversationId/messages", requireSession, async (re
       .select()
       .from(dataFilesTable)
       .where(sql`${dataFilesTable.folderId} = ANY(ARRAY[${idList}]::int[]) AND ${dataFilesTable.status} = 'confirmed'`)
-      .orderBy(desc(dataFilesTable.uploadedAt))
-      .limit(10);
+      .orderBy(
+        desc(dataFilesTable.periodYear),
+        desc(dataFilesTable.periodMonth),
+        desc(dataFilesTable.uploadedAt),
+      );
   }
 
   // Separate: files with dynamic tables (new) vs legacy (data_rows only)
