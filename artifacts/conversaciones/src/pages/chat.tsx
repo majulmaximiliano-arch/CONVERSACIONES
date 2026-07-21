@@ -1,22 +1,55 @@
+import { useState, useEffect } from "react";
 import { useGetSession, useGetDashboardOverview, getGetDashboardOverviewQueryKey } from "@workspace/api-client-react";
 import { ChatSidebar } from "@/components/chat/chat-sidebar";
 import { Bot, LineChart, FileSpreadsheet } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useLocation } from "wouter";
+import { useIsMobile } from "@/hooks/use-mobile";
+
+const SIDEBAR_STORAGE_KEY = "conversaciones:sidebar-open";
 
 export function ChatList() {
   const { data: session } = useGetSession();
   const userId = session?.user?.id;
-  const [, setLocation] = useLocation();
+  const isMobile = useIsMobile();
 
-  const { data: dashboard, isLoading } = useGetDashboardOverview(
+  const { data: dashboard } = useGetDashboardOverview(
     { userId: userId! },
     { query: { enabled: !!userId, queryKey: getGetDashboardOverviewQueryKey({ userId: userId! }) } }
   );
 
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+      if (stored !== null) return stored === "true";
+    } catch {
+      // ignore
+    }
+    // default: closed on mobile, open on desktop
+    return typeof window !== "undefined" ? window.innerWidth >= 768 : true;
+  });
+
+  // When isMobile resolves, close sidebar on mobile if no stored preference
+  useEffect(() => {
+    const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    if (stored === null) {
+      setSidebarOpen(!isMobile);
+    }
+  }, [isMobile]);
+
+  const handleToggle = () => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="flex h-full w-full">
-      <ChatSidebar />
+      <ChatSidebar isOpen={sidebarOpen} onToggle={handleToggle} />
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-muted/10">
         <div className="max-w-md space-y-6">
           <div className="h-20 w-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto text-primary shadow-sm border border-primary/20">

@@ -14,12 +14,16 @@ import { MessageBubble } from "@/components/chat/message-bubble";
 import { InsightPanel } from "@/components/chat/insight-panel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2 } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+
+const SIDEBAR_STORAGE_KEY = "conversaciones:sidebar-open";
 
 export function ChatDetail() {
   const { id } = useParams();
   const conversationId = Number(id);
   const { data: session } = useGetSession();
   const userId = session?.user?.id;
+  const isMobile = useIsMobile();
   
   const queryClient = useQueryClient();
   const sendMessage = useSendMessage();
@@ -29,6 +33,36 @@ export function ChatDetail() {
     conversationId,
     { query: { enabled: !!conversationId, queryKey: getGetConversationQueryKey(conversationId) } }
   );
+
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+      if (stored !== null) return stored === "true";
+    } catch {
+      // ignore
+    }
+    return typeof window !== "undefined" ? window.innerWidth >= 768 : true;
+  });
+
+  // When isMobile resolves, close sidebar on mobile if no stored preference
+  useEffect(() => {
+    const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    if (stored === null) {
+      setSidebarOpen(!isMobile);
+    }
+  }, [isMobile]);
+
+  const handleToggle = () => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -56,7 +90,7 @@ export function ChatDetail() {
 
   return (
     <div className="flex h-full w-full">
-      <ChatSidebar />
+      <ChatSidebar isOpen={sidebarOpen} onToggle={handleToggle} />
       
       <div className="flex-1 flex flex-col min-w-0 bg-background relative">
         <div className="flex-1 overflow-y-auto" ref={scrollRef}>
